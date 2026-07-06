@@ -66,14 +66,18 @@ def get_neo4j_driver() -> Driver:
 
     return st.session_state.neo4j_driver
 
-@st.cache_data(ttl=300)  # Cache query results, not the driver
+@st.cache_data(ttl=300)
+def _cached_query(query: str) -> List[Dict[str, Any]]:
+    # actual cached function that expects a successful result
+    driver = get_neo4j_driver()
+    with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
+        result = session.run(query)
+        return [dict(record) for record in result]
+    
 def execute_query(query: str) -> List[Dict[str, Any]] | str:
     """Execute a Cypher query with explicit error handling."""
     try:
-        driver = get_neo4j_driver()
-        with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
-            result = session.run(query)
-            return [dict(record) for record in result]
+        return _cached_query(query)
     except Exception as e:
         # Clear the driver if it's in a bad state
         if "neo4j_driver" in st.session_state:
