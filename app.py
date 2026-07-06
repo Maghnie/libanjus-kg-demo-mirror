@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import json
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 import requests
 import streamlit as st
@@ -27,6 +30,20 @@ Relationships:
 """
 
 # --- Helper Functions ---
+def load_company_config(company_name: str = "libanjus") -> Dict[str, Any]:
+    """Load company-specific configuration."""
+    config_path = Path(f"config/companies/{company_name}.json")
+    if not config_path.exists():
+        return {
+            "name": company_name,
+            "display_name": "LibanJus",
+            "description": "Lebanese food products company",
+            "icon": "🍊",
+            "color": "#2E8B57"
+        }
+    with open(config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+    
 def get_neo4j_driver() -> Driver:
     """Get or create a Neo4j driver instance (stored in session state)."""
     if "neo4j_driver" not in st.session_state:
@@ -224,64 +241,30 @@ def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
 def main() -> None:
     """Main application entry point."""
     st.set_page_config(
-        page_title="LibanJus KG Assistant",
-        page_icon="🍊",
+        page_title=f"{company_config['display_name']} KG Assistant",
+        page_icon=company_config.get("icon", "🍊"),
         layout="wide",
         initial_sidebar_state="expanded",
     )
 
-    st.markdown(
-        """
-        <style>
-            /* LibanJus Branding */
-            .stApp {
-                background-color: #F0F8F0;
-            }
-            .stChatMessage {
-                padding: 1rem;
-                border-radius: 0.5rem;
-                margin-bottom: 1rem;
-                background-color: #FFFFFF;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            .stChatMessage p {
-                margin: 0;
-                color: #2F4F2F;
-            }
-            .user-message {
-                background-color: #E8F5E8 !important;
-                margin-left: 20%;
-                border-left: 3px solid #2E8B57;
-            }
-            .assistant-message {
-                background-color: #FFFFFF !important;
-                margin-right: 20%;
-                border-left: 3px solid #4CAF50;
-            }
-            .stButton>button {
-                background-color: #2E8B57 !important;
-                color: white !important;
-                border: none !important;
-            }
-            .stButton>button:hover {
-                background-color: #267D43 !important;
-            }
-            .stSidebar {
-                background-color: #FFFFFF !important;
-            }
-            h1, h2, h3 {
-                color: #2F4F2F !important;
-            }
-            .stExpander {
-                border: 1px solid #4CAF50 !important;
-                border-radius: 0.5rem !important;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.title("🍊 LibanJus Knowledge Graph Assistant")
-    st.markdown("*Ask about products, dietary needs, store locations, or opening hours.*")
+    company_color = company_config.get("color", "#2E8B57")
+    st.markdown(f"""
+    <style>
+        .stApp {{ background-color: #F0F8F0; }}
+        .stChatMessage {{ padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; background-color: #FFFFFF; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .stChatMessage p {{ margin: 0; color: {company_color}; }}
+        .user-message {{ background-color: #E8F5E8 !important; margin-left: 20%; border-left: 3px solid {company_color}; }}
+        .assistant-message {{ background-color: #FFFFFF !important; margin-right: 20%; border-left: 3px solid {company_color}; }}
+        .stButton>button {{ background-color: {company_color} !important; color: white !important; border: none !important; }}
+        .stButton>button:hover {{ background-color: {company_color}CC !important; }}
+        .stSidebar {{ background-color: #FFFFFF !important; }}
+        h1, h2, h3 {{ color: {company_color} !important; }}
+        .stExpander {{ border: 1px solid {company_color} !important; border-radius: 0.5rem !important; }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.title(f"{company_config['icon']} {company_config['display_name']} Knowledge Graph Assistant")
+    st.markdown(f"*{company_config['description']}*")
 
     # Test connection upfront
     try:
@@ -379,4 +362,5 @@ def main() -> None:
         st.rerun()
 
 if __name__ == "__main__":
+    company_config = load_company_config(os.getenv("COMPANY", "libanjus"))
     main()
