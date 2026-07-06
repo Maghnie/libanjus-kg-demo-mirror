@@ -1,11 +1,12 @@
+# Environment
 .streamlit/
 .env
+
+# Data files 
+data/
+config/
 
 # Python
 venv/
 .venv/
 __pycache__/
-*.py[cod]
-*\$py.class
-*.pyo
-*.pyd

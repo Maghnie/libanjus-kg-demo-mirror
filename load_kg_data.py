@@ -1,135 +1,224 @@
-"""Load sample data into Neo4j Knowledge Graph for LibanJus demo."""
+"""Load company data into Neo4j Knowledge Graph."""
 
 from __future__ import annotations
 
 import os
+import json
 import sys
+from pathlib import Path
 from typing import List, Dict, Any
 from neo4j import GraphDatabase, Driver
 from dotenv import load_dotenv
 
-# Load the .env file
 load_dotenv()
 
-# --- Data Definitions ---
-PRODUCTS: List[Dict[str, Any]] = [
-    {
-        "name": "Organic Labneh",
-        "description": "Premium organic strained yogurt",
-        "ingredients": ["Organic Milk", "Salt", "Live Cultures"],
-        "tags": ["organic", "gluten-free", "vegetarian"],
-        "category": "Dairy",
-    },
-    {
-        "name": "Fat-Free Milk",
-        "description": "100% fat-free pasteurized milk",
-        "ingredients": ["Skimm Milk", "Vitamin D"],
-        "tags": ["fat-free", "lactose-free", "gluten-free"],
-        "category": "Dairy",
-    },
-    {
-        "name": "Classic Hummus",
-        "description": "Creamy chickpea dip",
-        "ingredients": ["Chickpeas", "Tahini", "Lemon Juice", "Garlic"],
-        "tags": ["gluten-free", "vegan", "vegetarian"],
-        "category": "Dips & Spreads",
-    },
-]
+def load_json_file(filepath: Path) -> List[Dict[str, Any]] | Dict[str, Any]:
+    """Load a JSON file from the data directory."""
+    if not filepath.exists():
+        raise FileNotFoundError(f"Data file not found: {filepath}")
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-LOCATIONS: List[Dict[str, Any]] = [
-    {"address": "Al-Hamra Main Street, Beirut", "city": "Beirut", "neighborhood": "Al-Hamra", "lat": 33.8938, "lon": 35.4955},
-    {"address": "Gemmayzeh Street, Beirut", "city": "Beirut", "neighborhood": "Gemmayzeh", "lat": 33.8919, "lon": 35.5018},
-]
+def get_company_data(company_name: str = "libanjus") -> Dict[str, Any]:
+    """Load all data files for a specific company."""
+    data_dir = Path(f"data/{company_name}")
 
-RETAILERS: List[Dict[str, Any]] = [
-    {
-        "name": "ABC Supermarket Al-Hamra",
-        "location": "Al-Hamra Main Street, Beirut",
-        "opening_hours": [{"day": "Sunday", "start": "09:00", "end": "21:00"}],
-    },
-    {
-        "name": "Spinneys Gemmayzeh",
-        "location": "Gemmayzeh Street, Beirut",
-        "opening_hours": [{"day": "Sunday", "start": "08:00", "end": "22:00"}],
-    },
-]
+    # Load all data files
+    products = load_json_file(data_dir / "products.json")
+    locations = load_json_file(data_dir / "locations.json")
+    retailers = load_json_file(data_dir / "retailers.json")
+    factories = load_json_file(data_dir / "factories.json")
+    distributors = load_json_file(data_dir / "distributors.json")
+    relationships = load_json_file(data_dir / "relationships.json")
 
-FACTORIES: List[Dict[str, str]] = [{"name": "LibanJus Beirut Factory", "location": "Al-Hamra Main Street, Beirut"}]
-DISTRIBUTORS: List[Dict[str, str]] = [{"name": "Beirut Food Distributors", "location": "Sassine Square, Achrafieh, Beirut"}]
+    return {
+        "products": products,
+        "locations": locations,
+        "retailers": retailers,
+        "factories": factories,
+        "distributors": distributors,
+        "relationships": relationships,
+    }
 
-PRODUCT_RETAILERS: Dict[str, List[str]] = {
-    "Organic Labneh": ["ABC Supermarket Al-Hamra", "Spinneys Gemmayzeh"],
-    "Fat-Free Milk": ["ABC Supermarket Al-Hamra"],
-    "Classic Hummus": ["ABC Supermarket Al-Hamra", "Spinneys Gemmayzeh"],
-}
-
-def load_data(uri: str, user: str, password: str, database: str = "neo4j") -> bool:
-    """Load data into Neo4j. Returns True if successful."""
+def load_data(company_name: str = "libanjus") -> bool:
+    """Load company data into Neo4j Knowledge Graph."""
     try:
-        driver: Driver = GraphDatabase.driver(uri, auth=(user, password))
-        with driver.session(database=database) as session:
-            # Test connection first
-            session.run("RETURN 1")
+        data = get_company_data(company_name)
+        products = data["products"]
+        locations = data["locations"]
+        retailers = data["retailers"]
+        factories = data["factories"]
+        distributors = data["distributors"]
+        relationships = data["relationships"]
 
-            # Clear and load data
+        # Get Neo4j credentials from environment
+        aura_instance_id = os.getenv("AURA_INSTANCEID")
+        neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+        neo4j_password = os.getenv("NEO4J_PASSWORD")
+        neo4j_database = os.getenv("NEO4J_DATABASE", "neo4j")
+
+        if not aura_instance_id:
+            print("❌ Error: AURA_INSTANCEID environment variable not set.", file=sys.stderr)
+            return False
+        if not neo4j_password:
+            print("❌ Error: NEO4J_PASSWORD environment variable not set.", file=sys.stderr)
+            return False
+
+        uri = f"neo4j+s://{aura_instance_id}.databases.neo4j.io:7687"
+        driver: Driver = GraphDatabase.driver(uri, auth=(neo4j_user, neo4j_password))
+
+        with driver.session(database=neo4j_database) as session:
+            # Clear existing data
             session.run("MATCH (n) DETACH DELETE n")
+
+            # Create constraints
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Product) REQUIRE p.name IS UNIQUE")
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (r:Retailer) REQUIRE r.name IS UNIQUE")
+            session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (l:Location) REQUIRE l.address IS UNIQUE")
 
-            for loc in LOCATIONS:
-                session.run("CREATE (l:Location {address: $address, city: $city, neighborhood: $neighborhood, lat: $lat, lon: $lon})", **loc)
+            # Load locations
+            print("📍 Loading locations...")
+            for loc in locations:
+                session.run(
+                    """
+                    CREATE (l:Location {
+                        address: $address,
+                        city: $city,
+                        neighborhood: $neighborhood,
+                        lat: $lat,
+                        lon: $lon
+                    })
+                    """,
+                    **loc,
+                )
 
-            for factory in FACTORIES:
+            # Load factories
+            print("🏭 Loading factories...")
+            for factory in factories:
                 session.run("CREATE (f:Factory {name: $name, location: $location})", **factory)
 
-            for distributor in DISTRIBUTORS:
+            # Load distributors
+            print("🚚 Loading distributors...")
+            for distributor in distributors:
                 session.run("CREATE (d:Distributor {name: $name, location: $location})", **distributor)
 
-            for product in PRODUCTS:
-                session.run("CREATE (p:Product {name: $name, description: $description, ingredients: $ingredients, tags: $tags, category: $category})", **product)
+            # Load products
+            print("📦 Loading products...")
+            for product in products:
+                session.run(
+                    """
+                    CREATE (p:Product {
+                        name: $name,
+                        description: $description,
+                        ingredients: $ingredients,
+                        tags: $tags,
+                        category: $category
+                    })
+                    """,
+                    **product,
+                )
 
-            for retailer in RETAILERS:
-                session.run("CREATE (r:Retailer {name: $name, location: $location})", name=retailer["name"], location=retailer["location"])
-                for hour in retailer["opening_hours"]:
-                    session.run("MATCH (r:Retailer {name: $name}) CREATE (r)-[:OPEN_AT]->(t:TimeSlot {day: $day, start: $start, end: $end})", name=retailer["name"], **hour)
+            # Load retailers + time slots
+            print("🏪 Loading retailers...")
+            for retailer in retailers:
+                session.run(
+                    "CREATE (r:Retailer {name: $name, location: $location})",
+                    name=retailer["name"],
+                    location=retailer["location"],
+                )
+                for hour in retailer.get("opening_hours", []):
+                    session.run(
+                        """
+                        MATCH (r:Retailer {name: $name})
+                        CREATE (r)-[:OPEN_AT]->(t:TimeSlot {
+                            day: $day,
+                            start: $start,
+                            end: $end
+                        })
+                        """,
+                        name=retailer["name"],
+                        **hour,
+                    )
 
-            for retailer in RETAILERS:
-                session.run("MATCH (r:Retailer {name: $name}) MATCH (l:Location {address: $address}) CREATE (r)-[:LOCATED_AT]->(l)", name=retailer["name"], address=retailer["location"])
+            # Link retailers to locations
+            print("🔗 Linking retailers to locations...")
+            for retailer in retailers:
+                session.run(
+                    """
+                    MATCH (r:Retailer {name: $name})
+                    MATCH (l:Location {address: $address})
+                    CREATE (r)-[:LOCATED_AT]->(l)
+                    """,
+                    name=retailer["name"],
+                    address=retailer["location"],
+                )
 
-            for product_name, retailer_names in PRODUCT_RETAILERS.items():
+            # Link products to factories
+            print("🔗 Linking products to factories...")
+            for product_name, factory_name in relationships.get("product_factories", {}).items():
+                session.run(
+                    """
+                    MATCH (p:Product {name: $product_name})
+                    MATCH (f:Factory {name: $factory_name})
+                    CREATE (p)-[:MANUFACTURED_AT]->(f)
+                    """,
+                    product_name=product_name,
+                    factory_name=factory_name,
+                )
+
+            # Link products to distributors
+            print("🔗 Linking products to distributors...")
+            for product_name, distributor_name in relationships.get("product_distributors", {}).items():
+                session.run(
+                    """
+                    MATCH (p:Product {name: $product_name})
+                    MATCH (d:Distributor {name: $distributor_name})
+                    CREATE (p)-[:DISTRIBUTED_BY]->(d)
+                    """,
+                    product_name=product_name,
+                    distributor_name=distributor_name,
+                )
+
+            # Link distributors to retailers
+            print("🔗 Linking distributors to retailers...")
+            for distributor_name, retailer_names in relationships.get("distributor_retailers", {}).items():
                 for retailer_name in retailer_names:
-                    session.run("MATCH (p:Product {name: $product_name}) MATCH (r:Retailer {name: $retailer_name}) CREATE (p)-[:AVAILABLE_AT]->(r)", product_name=product_name, retailer_name=retailer_name)
+                    session.run(
+                        """
+                        MATCH (d:Distributor {name: $distributor_name})
+                        MATCH (r:Retailer {name: $retailer_name})
+                        CREATE (d)-[:SUPPLIES_TO]->(r)
+                        """,
+                        distributor_name=distributor_name,
+                        retailer_name=retailer_name,
+                    )
+
+            # Link products to retailers
+            print("🔗 Linking products to retailers...")
+            for product_name, retailer_names in relationships.get("product_retailers", {}).items():
+                for retailer_name in retailer_names:
+                    session.run(
+                        """
+                        MATCH (p:Product {name: $product_name})
+                        MATCH (r:Retailer {name: $retailer_name})
+                        CREATE (p)-[:AVAILABLE_AT]->(r)
+                        """,
+                        product_name=product_name,
+                        retailer_name=retailer_name,
+                    )
 
         driver.close()
+        print(f"✅ {company_name} data loaded successfully!")
         return True
+
     except Exception as e:
-        print(f"❌ Error loading data: {str(e)}", file=sys.stderr)
+        print(f"❌ Error loading {company_name} data: {str(e)}", file=sys.stderr)
         return False
 
 def main() -> None:
-    """Main entry point with explicit error messages."""
-    aura_instance_id = os.getenv("AURA_INSTANCEID")
-    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
-    neo4j_password = os.getenv("NEO4J_PASSWORD")
-    neo4j_database = os.getenv("NEO4J_DATABASE", "neo4j")
-
-    if not aura_instance_id:
-        print("❌ Error: AURA_INSTANCEID environment variable not set.", file=sys.stderr)
-        print("   Set it in your .env file or export it.", file=sys.stderr)
-        sys.exit(1)
-    if not neo4j_password:
-        print("❌ Error: NEO4J_PASSWORD environment variable not set.", file=sys.stderr)
-        print("   Set it in your .env file or export it.", file=sys.stderr)
-        sys.exit(1)
-
-    uri = f"neo4j+s://{aura_instance_id}.databases.neo4j.io:7687"
-    print(f"🔌 Connecting to Neo4j at {uri}...")
-
-    if load_data(uri, neo4j_user, neo4j_password, neo4j_database):
-        print("✅ KG data loaded successfully!")
-        print("📊 Verify your data in Neo4j Aura dashboard: https://neo4j.io/aura")
-    else:
-        print("❌ Failed to load data. Check your connection details.", file=sys.stderr)
+    """Main entry point."""
+    company_name = os.getenv("COMPANY", "libanjus")
+    if not load_data(company_name):
         sys.exit(1)
 
 if __name__ == "__main__":
