@@ -200,8 +200,49 @@ def main() -> None:
     st.markdown(
         """
         <style>
-            .stChatMessage { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; }
-            .stChatMessage p { margin: 0; }
+            /* LibanJus Branding */
+            .stApp {
+                background-color: #F0F8F0;
+            }
+            .stChatMessage {
+                padding: 1rem;
+                border-radius: 0.5rem;
+                margin-bottom: 1rem;
+                background-color: #FFFFFF;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .stChatMessage p {
+                margin: 0;
+                color: #2F4F2F;
+            }
+            .user-message {
+                background-color: #E8F5E8 !important;
+                margin-left: 20%;
+                border-left: 3px solid #2E8B57;
+            }
+            .assistant-message {
+                background-color: #FFFFFF !important;
+                margin-right: 20%;
+                border-left: 3px solid #4CAF50;
+            }
+            .stButton>button {
+                background-color: #2E8B57 !important;
+                color: white !important;
+                border: none !important;
+            }
+            .stButton>button:hover {
+                background-color: #267D43 !important;
+            }
+            .stSidebar {
+                background-color: #FFFFFF !important;
+            }
+            h1, h2, h3 {
+                color: #2F4F2F !important;
+            }
+            .stExpander {
+                border: 1px solid #4CAF50 !important;
+                border-radius: 0.5rem !important;
+            }
         </style>
         """,
         unsafe_allow_html=True,
