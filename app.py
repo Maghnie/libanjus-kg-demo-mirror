@@ -271,7 +271,7 @@ def main() -> None:
         driver = get_neo4j_driver()
         with driver.session() as s:
             count = s.run("MATCH (p:Product) RETURN count(p)").single()[0]
-        st.success(f"✅ Connected to Neo4j! Found {count} products.")
+        st.toast(f"Connected to Neo4j database.", icon="✅")
     except Exception as e:
         st.error(f"❌ Connection failed: {str(e)}")
         st.stop()
@@ -294,14 +294,6 @@ def main() -> None:
                         st.markdown(f"**{product['name']}**  \n*Tags: {tags}*")
 
         st.divider()
-        st.header("ℹ️ About")
-        st.markdown(
-            "**Tech Stack:**\n"
-            "- 🗃️ Neo4j 6.2.0 (Knowledge Graph)\n"
-            "- 🤖 Mistral AI (Query Generation)\n"
-            "- 🎨 Streamlit 1.58.0 (UI)\n"
-            "- 🐍 Python 3.12"
-        )
 
         st.markdown("**Try These:**")
         example_questions = [
