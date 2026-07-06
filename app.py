@@ -27,29 +27,29 @@ Relationships:
 """
 
 # --- Helper Functions ---
-@st.cache_resource
 def get_neo4j_driver() -> Driver:
-    """Get or create a cached Neo4j driver instance with connection test."""
-    aura_instance_id = st.secrets["AURA_INSTANCEID"]
-    uri = f"neo4j+s://{aura_instance_id}.databases.neo4j.io:7687"
+    """Get or create a Neo4j driver instance (stored in session state)."""
+    if "neo4j_driver" not in st.session_state:
+        aura_instance_id = st.secrets["AURA_INSTANCEID"]
+        uri = f"neo4j+s://{aura_instance_id}.databases.neo4j.io:7687"
 
-    try:
-        driver = GraphDatabase.driver(
-            uri,
-            auth=(st.secrets["NEO4J_USER"], st.secrets["NEO4J_PASSWORD"]),
-        )
-        # Test connection immediately
-        with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
-            session.run("RETURN 1")
-        return driver
-    except Exception as e:
-        st.error(f"❌ Neo4j connection failed: {str(e)}")
-        st.error("Check your AURA_INSTANCEID, NEO4J_USER, and NEO4J_PASSWORD in .streamlit/secrets.toml")
-        # Clear cache to force reconnection on next attempt
-        st.cache_resource.clear()
-        raise
+        try:
+            driver = GraphDatabase.driver(
+                uri,
+                auth=(st.secrets["NEO4J_USER"], st.secrets["NEO4J_PASSWORD"]),
+            )
+            # Test connection immediately
+            with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
+                session.run("RETURN 1")
+            st.session_state.neo4j_driver = driver
+        except Exception as e:
+            st.error(f"❌ Neo4j connection failed: {str(e)}")
+            st.error("Check your AURA_INSTANCEID, NEO4J_USER, and NEO4J_PASSWORD in .streamlit/secrets.toml")
+            st.stop()  # Stop the app if connection fails
 
-@st.cache_data(ttl=300)
+    return st.session_state.neo4j_driver
+
+@st.cache_data(ttl=300)  # Cache query results, not the driver
 def execute_query(query: str) -> List[Dict[str, Any]] | str:
     """Execute a Cypher query with explicit error handling."""
     try:
@@ -58,6 +58,9 @@ def execute_query(query: str) -> List[Dict[str, Any]] | str:
             result = session.run(query)
             return [dict(record) for record in result]
     except Exception as e:
+        # Clear the driver if it's in a bad state
+        if "neo4j_driver" in st.session_state:
+            del st.session_state.neo4j_driver
         return f"❌ Query error: {str(e)}"
 
 def validate_cypher(query: str) -> bool:
@@ -106,21 +109,21 @@ def generate_cypher(user_question: str) -> Optional[str]:
         return generate_fallback_query(user_question)
 
 def generate_fallback_query(question: str) -> str:
-    """Fallback queries with correct syntax."""
+    """Fallback queries with CORRECTED colons (no backslashes)."""
     question_lower = question.lower()
     if any(word in question_lower for word in ["gluten-free", "celiac"]):
-        return "MATCH (p\:Product) WHERE 'gluten-free' IN p.tags RETURN p.name, p.description, p.tags"
+        return "MATCH (p:Product) WHERE 'gluten-free' IN p.tags RETURN p.name, p.description, p.tags"
     if "lactose-free" in question_lower:
-        return "MATCH (p\:Product) WHERE 'lactose-free' IN p.tags RETURN p.name, p.description, p.tags"
+        return "MATCH (p:Product) WHERE 'lactose-free' IN p.tags RETURN p.name, p.description, p.tags"
     if "organic" in question_lower:
-        return "MATCH (p\:Product) WHERE 'organic' IN p.tags RETURN p.name, p.description, p.category"
+        return "MATCH (p:Product) WHERE 'organic' IN p.tags RETURN p.name, p.description, p.category"
     if "labneh" in question_lower:
-        return "MATCH (p\:Product {name: 'Organic Labneh'})-[\:AVAILABLE_AT]->(r\:Retailer)-[\:LOCATED_AT]->(l\:Location) RETURN r.name, l.neighborhood, l.address"
+        return "MATCH (p:Product {name: 'Organic Labneh'})-[:AVAILABLE_AT]->(r:Retailer)-[:LOCATED_AT]->(l:Location) RETURN r.name, l.neighborhood, l.address"
     if "hummus" in question_lower:
-        return "MATCH (p\:Product {name: 'Classic Hummus'})-[\:AVAILABLE_AT]->(r\:Retailer)-[\:LOCATED_AT]->(l\:Location) RETURN r.name, l.neighborhood, l.address"
+        return "MATCH (p:Product {name: 'Classic Hummus'})-[:AVAILABLE_AT]->(r:Retailer)-[:LOCATED_AT]->(l:Location) RETURN r.name, l.neighborhood, l.address"
     if any(word in question_lower for word in ["open", "sunday", "5pm"]):
-        return "MATCH (r\:Retailer)-[\:OPEN_AT]->(t\:TimeSlot {day: 'Sunday'}) WHERE t.start <= '17:00' AND t.end >= '17:00' RETURN r.name, t.start, t.end, r.location"
-    return "MATCH (p\:Product) RETURN p.name, p.category LIMIT 10"
+        return "MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {day: 'Sunday'}) WHERE t.start <= '17:00' AND t.end >= '17:00' RETURN r.name, t.start, t.end, r.location"
+    return "MATCH (p:Product) RETURN p.name, p.category LIMIT 10"
 
 def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
     """Format results into human-readable answers."""
@@ -168,7 +171,7 @@ def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
 def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
     """Fetch product catalog with explicit error handling."""
     query = """
-    MATCH (p\:Product)
+    MATCH (p:Product)
     RETURN p.name AS name, p.category AS category, p.tags AS tags
     ORDER BY p.category, p.name
     """
@@ -249,6 +252,16 @@ def main() -> None:
     )
     st.title("🍊 LibanJus Knowledge Graph Assistant")
     st.markdown("*Ask about products, dietary needs, store locations, or opening hours.*")
+
+    # Test connection upfront
+    try:
+        driver = get_neo4j_driver()
+        with driver.session() as s:
+            count = s.run("MATCH (p:Product) RETURN count(p)").single()[0]
+        st.success(f"✅ Connected to Neo4j! Found {count} products.")
+    except Exception as e:
+        st.error(f"❌ Connection failed: {str(e)}")
+        st.stop()
 
     if "messages" not in st.session_state:
         st.session_state.messages: List[Dict[str, str]] = []
@@ -332,6 +345,12 @@ def main() -> None:
     st.sidebar.divider()
     if st.sidebar.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
+        st.rerun()
+
+    if st.sidebar.button("🔄 Reset Connection", use_container_width=True):
+        if "neo4j_driver" in st.session_state:
+            del st.session_state.neo4j_driver
+        st.cache_data.clear()
         st.rerun()
 
 if __name__ == "__main__":
