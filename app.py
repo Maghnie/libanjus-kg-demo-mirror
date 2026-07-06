@@ -165,17 +165,24 @@ def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
     if not results:
         return "No results found."
 
-    def get_value(record: Dict[str, Any], key: str) -> Any:
-        """Get value from record, handling p.key, key, or nested p formats."""
-        # Try prefixed (p.name)
-        if f"p.{key}" in record:
-            return record[f"p.{key}"]
-        # Try flat (name)
-        if key in record:
-            return record[key]
-        # Try nested (p)
-        if "p" in record and isinstance(record["p"], dict):
-            return record["p"].get(key)
+    def extract_value(record: Dict[str, Any], field: str) -> Any:
+        """Extract a value from a Neo4j record, supporting dotted keys and nested dicts."""
+        # 1. Exact match
+        if field in record:
+            return record[field]
+        # 2. Dotted keys like 'r.name' or 'p.description'
+        for key, value in record.items():
+            if key.endswith(f".{field}"):
+                return value
+        # 3. Nested dict (e.g., record['p'] = {'name': ...})
+        for key, value in record.items():
+            if isinstance(value, dict) and field in value:
+                return value[field]
+        # 4. If record has only one key and it's a dict, try that
+        if len(record) == 1:
+            only_value = next(iter(record.values()))
+            if isinstance(only_value, dict) and field in only_value:
+                return only_value[field]
         return None
 
     question_lower = question.lower()
@@ -183,35 +190,35 @@ def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
     if any(word in question_lower for word in ["gluten-free", "lactose-free", "organic", "vegan", "celiac"]):
         products = []
         for record in results:
-            name = get_value(record, "name") or "Unknown"
-            desc = get_value(record, "description") or ""
-            tags = get_value(record, "tags") or []
+            name = extract_value(record, "name") or "Unknown"
+            desc = extract_value(record, "description") or ""
+            tags = extract_value(record, "tags") or []
             products.append(f"**{name}** - {desc} (*{', '.join(tags)}*)")
         return "\n\n".join(products) if products else "No matching products found."
 
     elif any(word in question_lower for word in ["where", "location", "near", "find"]):
         locations = []
         for record in results:
-            retailer = get_value(record, "name") or get_value(record, "r") or "Unknown"
-            neighborhood = get_value(record, "neighborhood") or get_value(record, "l.neighborhood") or "Unknown"
-            address = get_value(record, "address") or get_value(record, "l.address") or "Unknown"
+            retailer = extract_value(record, "name") or extract_value(record, "r") or "Unknown"
+            neighborhood = extract_value(record, "neighborhood") or extract_value(record, "l.neighborhood") or "Unknown"
+            address = extract_value(record, "address") or extract_value(record, "l.address") or "Unknown"
             locations.append(f"- **{retailer}** in {neighborhood}: {address}")
         return "\n".join(locations) if locations else "No locations match your criteria."
 
     elif any(word in question_lower for word in ["open", "close", "hours", "time"]):
         times = []
         for record in results:
-            retailer = get_value(record, "name") or get_value(record, "r") or "Unknown"
-            day = get_value(record, "day") or get_value(record, "t.day") or "Unknown"
-            start = get_value(record, "start") or get_value(record, "t.start") or "?"
-            end = get_value(record, "end") or get_value(record, "t.end") or "?"
+            retailer = extract_value(record, "name") or extract_value(record, "r") or "Unknown"
+            day = extract_value(record, "day") or extract_value(record, "t.day") or "Unknown"
+            start = extract_value(record, "start") or extract_value(record, "t.start") or "?"
+            end = extract_value(record, "end") or extract_value(record, "t.end") or "?"
             times.append(f"- **{retailer}**: {day} {start}–{end}")
         return "\n".join(times) if times else "No matching hours found."
 
     else:
         items = []
         for record in results:
-            name = get_value(record, "name") or "Unknown"
+            name = extract_value(record, "name") or "Unknown"
             items.append(f"- {name}")
         return "\n".join(items) if items else "No items found."
     
