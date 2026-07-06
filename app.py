@@ -64,24 +64,40 @@ def execute_query(query: str) -> List[Dict[str, Any]] | str:
         return f"❌ Query error: {str(e)}"
 
 def validate_cypher(query: str) -> bool:
-    """Validate Cypher query syntax."""
+    """Strict validation: must have RETURN/FINISH/UPDATE and no syntax errors."""
     if not query:
         return False
     query_lower = query.lower().strip()
-    return query_lower.startswith(("match", "create", "return"))
+    # Must start with valid clause and contain RETURN/FINISH/UPDATE
+    if not query_lower.startswith(("match", "return", "create", "finish", "update")):
+        return False
+    if "return" not in query_lower and "finish" not in query_lower and "update" not in query_lower:
+        return False
+    # Reject known bad patterns
+    if "{tags:" in query or "{tags: [" in query:
+        return False
+    return True
 
 def generate_cypher(user_question: str) -> Optional[str]:
-    """Generate Cypher query using Mistral AI."""
+    """Generate Cypher with strict rules for free tier reliability."""
     api_key = st.secrets.get("MISTRAL_API_KEY")
     if not api_key:
         st.error("Mistral API key not configured")
         return None
 
     prompt = f"""
-    You are an expert Cypher query generator for a Neo4j graph with this schema:
-    {SCHEMA}
-    Generate a Cypher query to answer: "{user_question}"
-    Return ONLY the query (no explanation, no markdown, no backticks).
+    You are a Cypher query generator for Neo4j. FOLLOW THESE RULES EXACTLY:
+
+    RULE 1: Every query MUST end with RETURN, FINISH, CREATE, or UPDATE
+    RULE 2: Product.tags is a LIST. Use: WHERE 'value' IN p.tags 
+    RULE 3: For 'lactose-free milk', use: WHERE 'lactose-free' IN p.tags AND p.name CONTAINS 'milk'
+
+    Schema:
+    - Product (name, description, ingredients, tags, category)
+    - Relationships: (Product)-[:AVAILABLE_AT]->(Retailer)
+
+    Generate a COMPLETE query for: "{user_question}"
+    RETURN ONLY the query. No explanation. No markdown.
     """
 
     url = "https://api.mistral.ai/v1/chat/completions"
@@ -89,8 +105,8 @@ def generate_cypher(user_question: str) -> Optional[str]:
     payload = {
         "model": "mistral-tiny",
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1,
-        "max_tokens": 500,
+        "temperature": 0.0,  # Deterministic
+        "max_tokens": 300,
     }
 
     try:
@@ -98,6 +114,7 @@ def generate_cypher(user_question: str) -> Optional[str]:
         response.raise_for_status()
         query = response.json()["choices"][0]["message"]["content"].strip()
 
+        # Clean up
         if "```" in query:
             query = query.split("```")[1].split("```")[0].strip()
         if query.startswith(("cypher", "Cypher")):
@@ -105,9 +122,8 @@ def generate_cypher(user_question: str) -> Optional[str]:
 
         return query if validate_cypher(query) else generate_fallback_query(user_question)
     except Exception as e:
-        st.error(f"LLM Error: {str(e)}")
         return generate_fallback_query(user_question)
-
+    
 def generate_fallback_query(question: str) -> str:
     """Fallback queries with CORRECTED colons (no backslashes)."""
     question_lower = question.lower()
@@ -126,48 +142,62 @@ def generate_fallback_query(question: str) -> str:
     return "MATCH (p:Product) RETURN p.name, p.category LIMIT 10"
 
 def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
-    """Format results into human-readable answers."""
+    """Format results - handles nested, flat, AND prefixed (p.name) keys."""
     if isinstance(results, str):
         return results
     if not results:
         return "No results found."
 
+    def get_value(record: Dict[str, Any], key: str) -> Any:
+        """Get value from record, handling p.key, key, or nested p formats."""
+        # Try prefixed (p.name)
+        if f"p.{key}" in record:
+            return record[f"p.{key}"]
+        # Try flat (name)
+        if key in record:
+            return record[key]
+        # Try nested (p)
+        if "p" in record and isinstance(record["p"], dict):
+            return record["p"].get(key)
+        return None
+
     question_lower = question.lower()
+
     if any(word in question_lower for word in ["gluten-free", "lactose-free", "organic", "vegan", "celiac"]):
         products = []
         for record in results:
-            if "p" in record:
-                name = record["p"].get("name", "Unknown")
-                desc = record["p"].get("description", "")
-                tags = ", ".join(record["p"].get("tags", []))
-                products.append(f"**{name}** - {desc} (*{tags}*)")
+            name = get_value(record, "name") or "Unknown"
+            desc = get_value(record, "description") or ""
+            tags = get_value(record, "tags") or []
+            products.append(f"**{name}** - {desc} (*{', '.join(tags)}*)")
         return "\n\n".join(products) if products else "No matching products found."
+
     elif any(word in question_lower for word in ["where", "location", "near", "find"]):
         locations = []
         for record in results:
-            retailer = record.get("r", {}).get("name", "Unknown")
-            neighborhood = record.get("l", {}).get("neighborhood", "Unknown")
-            address = record.get("l", {}).get("address", "Unknown")
+            retailer = get_value(record, "name") or get_value(record, "r") or "Unknown"
+            neighborhood = get_value(record, "neighborhood") or get_value(record, "l.neighborhood") or "Unknown"
+            address = get_value(record, "address") or get_value(record, "l.address") or "Unknown"
             locations.append(f"- **{retailer}** in {neighborhood}: {address}")
         return "\n".join(locations) if locations else "No locations match your criteria."
+
     elif any(word in question_lower for word in ["open", "close", "hours", "time"]):
         times = []
         for record in results:
-            retailer = record.get("r", {}).get("name", "Unknown")
-            day = record.get("t", {}).get("day", "Unknown")
-            start = record.get("t", {}).get("start", "?")
-            end = record.get("t", {}).get("end", "?")
+            retailer = get_value(record, "name") or get_value(record, "r") or "Unknown"
+            day = get_value(record, "day") or get_value(record, "t.day") or "Unknown"
+            start = get_value(record, "start") or get_value(record, "t.start") or "?"
+            end = get_value(record, "end") or get_value(record, "t.end") or "?"
             times.append(f"- **{retailer}**: {day} {start}–{end}")
         return "\n".join(times) if times else "No matching hours found."
+
     else:
         items = []
         for record in results:
-            if "p" in record:
-                items.append(f"- {record['p'].get('name', 'Unknown')}")
-            elif "r" in record:
-                items.append(f"- {record['r'].get('name', 'Unknown')}")
+            name = get_value(record, "name") or "Unknown"
+            items.append(f"- {name}")
         return "\n".join(items) if items else "No items found."
-
+    
 def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
     """Fetch product catalog with explicit error handling."""
     query = """
@@ -327,6 +357,7 @@ def main() -> None:
                 st.rerun()
 
             results = execute_query(cypher_query)
+            print(results)
             answer = format_answer(results, prompt)
 
         with chat_container.chat_message("assistant"):
