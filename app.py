@@ -266,17 +266,11 @@ def main() -> None:
     if "messages" not in st.session_state:
         st.session_state.messages: List[Dict[str, str]] = []
 
-    # Test Neo4j connection upfront
-    try:
-        driver = get_neo4j_driver()
-        driver.close()
-    except Exception:
-        st.error("❌ Cannot connect to Neo4j. Check your .streamlit/secrets.toml file.")
-        st.stop()
+    # LOAD CATALOG BEFORE SIDEBAR RENDERS to prevent race condition
+    catalog = get_product_catalog()
 
     with st.sidebar:
-        st.header("📚 Product Catalog")
-        catalog = get_product_catalog()
+        st.header("📚 Product Catalog")        
         if not catalog:
             st.warning("⚠️ No products found. Did you run `python load_kg_data.py`?")
         else:
