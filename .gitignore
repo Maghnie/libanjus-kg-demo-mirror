@@ -1,0 +1,11 @@
+.streamlit/
+.env
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*\$py.class
+*.pyo
+*.pyd
