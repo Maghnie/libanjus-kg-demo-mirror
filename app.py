@@ -15,7 +15,7 @@ from google.genai import types
 # --- Constants ---
 SCHEMA = """
 Nodes:
-- Product (name, description, ingredients, tags, category)
+- Product (name, description, ingredients, tags, category, brand)
 - Retailer (name, location)
 - Location (address, city, neighborhood, lat, lon)
 - TimeSlot (day, start, end)
@@ -85,7 +85,22 @@ def execute_query(query: str) -> List[Dict[str, Any]] | str:
         if "neo4j_driver" in st.session_state:
             del st.session_state.neo4j_driver
         return f"❌ Query error: {str(e)}"
-    
+
+@st.cache_data(ttl=3600)
+def get_distinct_values() -> Dict[str, List[str]]:
+    driver = get_neo4j_driver()
+    with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
+        categories = session.run("MATCH (p:Product) RETURN DISTINCT p.category AS cat").value()
+        brands = session.run("MATCH (p:Product) RETURN DISTINCT p.brand AS brand").value()
+        tags = session.run("MATCH (p:Product) UNWIND p.tags AS tag RETURN DISTINCT tag").value()
+        retailer_names = session.run("MATCH (r:Retailer) RETURN DISTINCT r.name AS name").value()
+    return {
+        "categories": [c for c in categories if c is not None],
+        "brands": [b for b in brands if b is not None],
+        "tags": [t for t in tags if t is not None],
+        "retailers": [r for r in retailer_names if r is not None],
+    }
+
 def validate_cypher(query: str) -> bool:
     """Light validation: must have a RETURN and no dangerous keywords."""
     if not query:
@@ -185,6 +200,14 @@ def generate_cypher(user_question: str) -> Optional[str]:
     model_name = st.secrets.get("GEMINI_MODEL", "gemini-3.5-flash")
     client = genai.Client(api_key=api_key)
 
+    # Fetch actual values from the DB
+    values = get_distinct_values()
+    print(f"Distinct values: {values}")
+    categories_str = ", ".join(values["categories"])
+    brands_str = ", ".join(values["brands"])
+    tags_str = ", ".join(values["tags"])
+    retailers_str = ", ".join(values["retailers"])
+
     # System instruction – defines the task and output format
     system_prompt = f"""
     You are a Neo4j Cypher expert. Your task is to convert a user question into a **valid, read‑only Cypher query**.
@@ -193,7 +216,14 @@ def generate_cypher(user_question: str) -> Optional[str]:
     1. **Schema**:
     {SCHEMA}   
 
+    **Important – actual values in the database**:
+    - Product.category can be: {categories_str}
+    - Product.brand can be: {brands_str}
+    - Product.tags can include: {tags_str}
+    - Retailer.name can be: {retailers_str}
+
     2. **Syntax**:
+    - Always use these exact category, brand, or tag values as they appear in the database.
     - Use single quotes for strings: 'value'
     - Use aliases: p for Product, r for Retailer, l for Location, t for TimeSlot, etc.
     - Always end the query with a `RETURN` clause.

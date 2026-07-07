@@ -112,7 +112,8 @@ def load_data(company_name: str = "libanjus") -> bool:
                         description: $description,
                         ingredients: $ingredients,
                         tags: $tags,
-                        category: $category
+                        category: $category,
+                        brand: $brand 
                     })
                     """,
                     **product,
