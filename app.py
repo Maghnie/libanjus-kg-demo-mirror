@@ -6,9 +6,11 @@ import os
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import requests
+# import requests
 import streamlit as st
 from neo4j import GraphDatabase, Driver
+import google.genai as genai
+from google.genai import types
 
 # --- Constants ---
 SCHEMA = """
@@ -83,70 +85,175 @@ def execute_query(query: str) -> List[Dict[str, Any]] | str:
         if "neo4j_driver" in st.session_state:
             del st.session_state.neo4j_driver
         return f"❌ Query error: {str(e)}"
-
+    
 def validate_cypher(query: str) -> bool:
-    """Strict validation: must have RETURN/FINISH/UPDATE and no syntax errors."""
+    """Light validation: must have a RETURN and no dangerous keywords."""
     if not query:
         return False
-    query_lower = query.lower().strip()
-    # Must start with valid clause and contain RETURN/FINISH/UPDATE
-    if not query_lower.startswith(("match", "return", "create", "finish", "update")):
+    q_lower = query.lower().strip()
+    # Must contain RETURN, but may also contain ORDER BY, LIMIT, etc.
+    if "return" not in q_lower:
         return False
-    if "return" not in query_lower and "finish" not in query_lower and "update" not in query_lower:
+    # Disallow write operations
+    dangerous = {"create", "delete", "merge", "set", "remove"}
+    if any(word in q_lower for word in dangerous):
         return False
-    # Reject known bad patterns
-    if "{tags:" in query or "{tags: [" in query:
+    # Must start with MATCH (most common) or OPTIONAL MATCH, but could be RETURN directly
+    if not (q_lower.startswith("match") or q_lower.startswith("optional match") or q_lower.startswith("return")):
         return False
     return True
 
+# def validate_cypher(query: str) -> bool:
+#     """Strict validation: must have RETURN/FINISH/UPDATE and no syntax errors."""
+#     if not query:
+#         return False
+#     query_lower = query.lower().strip()
+#     # Must start with valid clause and contain RETURN/FINISH/UPDATE
+#     if not query_lower.startswith(("match", "return", "create", "finish", "update")):
+#         return False
+#     if "return" not in query_lower and "finish" not in query_lower and "update" not in query_lower:
+#         return False
+#     # Reject known bad patterns
+#     if "{tags:" in query or "{tags: [" in query:
+#         return False
+#     return True
+
+# def generate_cypher(user_question: str) -> Optional[str]:
+#     """Generate Cypher with strict rules for free tier reliability."""
+#     api_key = st.secrets.get("GEMINI_API_KEY")
+#     if not api_key:
+#         st.error("GEMINI API key not configured")
+#         return None
+
+#     prompt = f"""
+#     You are a Neo4j Cypher expert.
+
+#     Given the following graph schema, generate a read-only Cypher query to answer the user's question. You MUST follow these rules:
+
+#     Schema: ... (list your nodes, relationships, and properties).
+
+#     Syntax: Use single quotes for strings ('value'). Use aliases like p for Product and r for Retailer.
+
+#     Validity: The query MUST be syntactically correct and end with a RETURN statement.
+
+#     Output: Return ONLY the Cypher query. Do not include any explanations, markdown, or extra text.
+
+#     Example 1:
+#     User: "Which stores are open on Sunday at 5pm?"
+#     Cypher: MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {{day: 'Sunday'}}) WHERE t.start <= '17:00' AND t.end >= '17:00' RETURN r.name, t.day, t.start, t.end
+
+#     Example 2:
+#     User: "What Maccaw juices are available?"
+#     Cypher: MATCH (p:Product)-[:AVAILABLE_AT]->(r:Retailer) WHERE p.brand = 'Maccaw' RETURN p.name, r.name
+
+#     User Question: {user_question}
+#     """
+
+#     url = "https://api.mistral.ai/v1/chat/completions"
+#     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+#     payload = {
+#         "model": "mistral-tiny",
+#         "messages": [{"role": "user", "content": prompt}],
+#         "temperature": 0.5,  
+#         "max_tokens": 500,
+#     }
+
+#     try:
+#         response = requests.post(url, headers=headers, json=payload, timeout=30)
+#         response.raise_for_status()
+#         query = response.json()["choices"][0]["message"]["content"].strip()
+
+#         # Clean up
+#         if "```" in query:
+#             query = query.split("```")[1].split("```")[0].strip()
+#         if query.startswith(("cypher", "Cypher")):
+#             query = query.split("\n")[1] if "\n" in query else query
+
+#         print(query)
+#         return query if validate_cypher(query) else generate_fallback_query(user_question)
+#     except Exception as e:
+#         print(e)
+#         return generate_fallback_query(user_question)
+    
 def generate_cypher(user_question: str) -> Optional[str]:
-    """Generate Cypher with strict rules for free tier reliability."""
-    api_key = st.secrets.get("MISTRAL_API_KEY")
+    """Generate Cypher using Gemini with a strict system prompt."""
+    api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key:
-        st.error("Mistral API key not configured")
+        st.error("Gemini API key not configured")
         return None
 
-    prompt = f"""
-    You are a Cypher query generator for Neo4j. FOLLOW THESE RULES EXACTLY:
+    model_name = st.secrets.get("GEMINI_MODEL", "gemini-3.5-flash")
+    client = genai.Client(api_key=api_key)
 
-    RULE 1: Every query MUST end with RETURN, FINISH, CREATE, or UPDATE
-    RULE 2: Product.tags is a LIST. Use: WHERE 'value' IN p.tags 
-    RULE 3: For 'lactose-free milk', use: WHERE 'lactose-free' IN p.tags AND p.name CONTAINS 'milk'
+    # System instruction – defines the task and output format
+    system_prompt = f"""
+    You are a Neo4j Cypher expert. Your task is to convert a user question into a **valid, read‑only Cypher query**.
+    Follow these rules strictly:
 
-    Schema:
-    - Product (name, description, ingredients, tags, category)
-    - Relationships: (Product)-[:AVAILABLE_AT]->(Retailer)
+    1. **Schema**:
+    {SCHEMA}   
 
-    Generate a COMPLETE query for: "{user_question}"
-    RETURN ONLY the query. No explanation. No markdown.
+    2. **Syntax**:
+    - Use single quotes for strings: 'value'
+    - Use aliases: p for Product, r for Retailer, l for Location, t for TimeSlot, etc.
+    - Always end the query with a `RETURN` clause.
+    - Do not use `CREATE`, `DELETE`, `MERGE`, or any write operations.
+
+    3. **Examples**:
+    User: "Which stores are open on Sunday at 5pm?"
+    Cypher: MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {{day: 'Sunday'}}) 
+                WHERE t.start <= '17:00' AND t.end >= '17:00' 
+                RETURN r.name, t.start, t.end
+
+    User: "What Maccaw juices are available?"
+    Cypher: MATCH (p:Product)-[:AVAILABLE_AT]->(r:Retailer) 
+                WHERE p.brand = 'Maccaw' 
+                RETURN p.name, r.name
+
+    User: "As a celiac, which products can I get?"
+    Cypher: MATCH (p:Product) WHERE 'gluten-free' IN p.tags RETURN p.name, p.tags
+
+    4. **Response**:
+    Output **only the Cypher query**. No explanations, no markdown, no backticks.
     """
 
-    url = "https://api.mistral.ai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {
-        "model": "mistral-tiny",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.0,  # Deterministic
-        "max_tokens": 300,
-    }
+    prompt = f"User question: {user_question}"
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        query = response.json()["choices"][0]["message"]["content"].strip()
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.2,
+                max_output_tokens=1024,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            )
+        )
+        print(f"Generated response: {response}")
 
-        # Clean up
+        query = response.text.strip()
+
+        # Clean up if model still outputs markdown
         if "```" in query:
-            query = query.split("```")[1].split("```")[0].strip()
-        if query.startswith(("cypher", "Cypher")):
-            query = query.split("\n")[1] if "\n" in query else query
+            parts = query.split("```")
+            query = parts[1] if len(parts) > 1 else parts[0]
+        if query.lower().startswith("cypher"):
+            query = query.split("\n", 1)[-1].strip()
 
-        return query if validate_cypher(query) else generate_fallback_query(user_question)
+        # Validate
+        if validate_cypher(query):
+            return query
+        else:
+            # Fallback if validation fails
+            return generate_fallback_query(user_question)
+
     except Exception as e:
+        print(f"Gemini error: {e}")
         return generate_fallback_query(user_question)
     
 def generate_fallback_query(question: str) -> str:
-    """Fallback queries with CORRECTED colons (no backslashes)."""
+    """Fallback queries"""
     question_lower = question.lower()
     if any(word in question_lower for word in ["gluten-free", "celiac"]):
         return "MATCH (p:Product) WHERE 'gluten-free' IN p.tags RETURN p.name, p.description, p.tags"
@@ -251,6 +358,7 @@ def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
 # --- Streamlit App ---
 def main() -> None:
     """Main application entry point."""
+    company_config = load_company_config(os.getenv("COMPANY", "libanjus"))
     st.set_page_config(
         page_title=f"{company_config['display_name']} KG Assistant",
         page_icon=company_config.get("icon", "🍊"),
@@ -284,7 +392,7 @@ def main() -> None:
             count = s.run("MATCH (p:Product) RETURN count(p)").single()[0]
         st.toast(f"Connected to Neo4j database.", icon="✅")
     except Exception as e:
-        st.error(f"❌ Connection failed: {str(e)}")
+        st.error(f"❌ Connection failed: {str(e)}. Trying refreshing the page.")
         st.stop()
 
     if "messages" not in st.session_state:
@@ -365,5 +473,4 @@ def main() -> None:
         st.rerun()
 
 if __name__ == "__main__":
-    company_config = load_company_config(os.getenv("COMPANY", "libanjus"))
     main()
