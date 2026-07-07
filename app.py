@@ -233,7 +233,7 @@ def generate_cypher(user_question: str) -> Optional[str]:
     User: "Which stores are open on Sunday at 5pm?"
     Cypher: MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {{day: 'Sunday'}}) 
                 WHERE t.start <= '17:00' AND t.end >= '17:00' 
-                RETURN r.name, t.start, t.end
+                RETURN r.name, t.day, t.start, t.end
 
     User: "What Maccaw juices are available?"
     Cypher: MATCH (p:Product)-[:AVAILABLE_AT]->(r:Retailer) 
@@ -296,7 +296,7 @@ def generate_fallback_query(question: str) -> str:
     if "hummus" in question_lower:
         return "MATCH (p:Product {name: 'Classic Hummus'})-[:AVAILABLE_AT]->(r:Retailer)-[:LOCATED_AT]->(l:Location) RETURN r.name, l.neighborhood, l.address"
     if any(word in question_lower for word in ["open", "sunday", "5pm"]):
-        return "MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {day: 'Sunday'}) WHERE t.start <= '17:00' AND t.end >= '17:00' RETURN r.name, t.start, t.end, r.location"
+        return "MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {day: 'Sunday'}) WHERE t.start <= '17:00' AND t.end >= '17:00' RETURN r.name, t.day, t.start, t.end, r.location"
     return "MATCH (p:Product) RETURN p.name, p.category LIMIT 10"
 
 def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
@@ -448,7 +448,7 @@ def main() -> None:
         example_questions = [
             "As a celiac, which products can I get?",
             "Where can I get organic Labneh near Al-Hamra?",
-            "Is there lactose-free milk?",
+            "Is there fat-free milk?",
             "Which stores are open on Sunday at 5pm?",
         ]
         for q in example_questions:
