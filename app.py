@@ -431,7 +431,9 @@ def main() -> None:
     # LOAD CATALOG BEFORE SIDEBAR RENDERS to prevent race condition
     catalog = get_product_catalog()
 
-    with st.sidebar:
+    tab_catalog, tab_chat = st.tabs(["🗃 Data", "💬 Chat"], default="💬 Chat")
+
+    with tab_catalog:
         st.header("📚 Product Catalog")        
         if not catalog:
             st.warning("⚠️ No products found. Did you run `python load_kg_data.py`?")
@@ -443,64 +445,69 @@ def main() -> None:
                         st.markdown(f"**{product['name']}**  \n*Tags: {tags}*")
 
         st.divider()
+        if st.button("🔄 Reset Connection", use_container_width=True):
+            if "neo4j_driver" in st.session_state:
+                del st.session_state.neo4j_driver
+            st.cache_data.clear()
+            st.rerun()
 
-        st.markdown("**Try These:**")
-        example_questions = [
-            "As a celiac, which products can I get?",
-            "Where can I get organic Labneh near Al-Hamra?",
-            "Is there fat-free milk?",
-            "Which stores are open on Sunday at 5pm?",
-        ]
-        for q in example_questions:
-            if st.button(q, key=f"btn_{hash(q) % 10000}", use_container_width=True):
-                st.session_state["user_input"] = q
-                st.rerun()
+    with tab_chat:
+        col_sample_qs, col_chat_box = st.columns(2)
+        
+        with col_sample_qs:
+            st.markdown("**Try These:**")
+            example_questions = [
+                "As a celiac, which products can I get?",
+                "Where can I get organic Labneh near Al-Hamra?",
+                "Is there fat-free milk?",
+                "Which stores are open on Sunday at 5pm?",
+            ]
+            for q in example_questions:
+                if st.button(q, key=f"btn_{hash(q) % 10000}", use_container_width=True):
+                    st.session_state["user_input"] = q
+                    st.rerun()
 
-    chat_container = st.container()
-    for msg in st.session_state.messages:
-        with chat_container.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        with col_chat_box:
+            st.markdown("**Or start typing:**")
+            chat_container = st.container()
+            for msg in st.session_state.messages:
+                with chat_container.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Ask a question...") or st.session_state.get("user_input"):
-        if st.session_state.get("user_input"):
-            prompt = st.session_state["user_input"]
-            del st.session_state["user_input"]
+            if prompt := st.chat_input("Ask a question...") or st.session_state.get("user_input"):
+                if st.session_state.get("user_input"):
+                    prompt = st.session_state["user_input"]
+                    del st.session_state["user_input"]
 
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with chat_container.chat_message("user"):
-            st.markdown(prompt)
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                with chat_container.chat_message("user"):
+                    st.markdown(prompt)
 
-        with st.spinner("🤔 Thinking..."):
-            cypher_query = generate_cypher(prompt)
-            if not cypher_query:
-                st.error("Could not generate a query. Please rephrase.")
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "Sorry, I couldn't generate a query. Please try rephrasing.",
-                })
-                st.rerun()
+                with st.spinner("🤔 Thinking..."):
+                    cypher_query = generate_cypher(prompt)
+                    if not cypher_query:
+                        st.error("Could not generate a query. Please rephrase.")
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": "Sorry, I couldn't generate a query. Please try rephrasing.",
+                        })
+                        st.rerun()
 
-            results = execute_query(cypher_query)
-            print(results)
-            answer = format_answer(results, prompt)
+                    results = execute_query(cypher_query)
+                    print(results)
+                    answer = format_answer(results, prompt)
 
-        with chat_container.chat_message("assistant"):
-            with st.expander("🔍 See Generated Cypher Query"):
-                st.code(cypher_query, language="cypher")
-            st.markdown(answer)
+                with chat_container.chat_message("assistant"):
+                    with st.expander("🔍 See Generated Cypher Query"):
+                        st.code(cypher_query, language="cypher")
+                    st.markdown(answer)
 
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+                st.session_state.messages.append({"role": "assistant", "content": answer})
 
-    st.sidebar.divider()
-    if st.sidebar.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
-
-    if st.sidebar.button("🔄 Reset Connection", use_container_width=True):
-        if "neo4j_driver" in st.session_state:
-            del st.session_state.neo4j_driver
-        st.cache_data.clear()
-        st.rerun()
+        st.divider()
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.messages = []
+            st.rerun()
 
 if __name__ == "__main__":
     main()
