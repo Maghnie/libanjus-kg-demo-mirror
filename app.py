@@ -41,12 +41,12 @@ Relationships:
 # Tier controls the concentric ring each label is placed on (0 = center).
 # Color/shape/size drive the legend and the per-node visual encoding.
 NODE_STYLES: Dict[str, Dict[str, Any]] = {
-    "Product":     {"tier": 0, "color": "#2E8B57", "shape": "dot",      "size": 26},
-    "Distributor": {"tier": 1, "color": "#F4A300", "shape": "diamond", "size": 20},
-    "Factory":     {"tier": 1, "color": "#8E5FD9", "shape": "triangle", "size": 20},
-    "Retailer":    {"tier": 2, "color": "#3D8BFD", "shape": "dot",      "size": 20},
-    "Location":    {"tier": 3, "color": "#6C757D", "shape": "square",   "size": 14},
-    "TimeSlot":    {"tier": 3, "color": "#B0B7BF", "shape": "dot",      "size": 10},
+    "Product":     {"tier": 0, "color": "#30A9FA", "shape": "dot",      "size": 26},
+    "Distributor": {"tier": 1, "color": "#F40000", "shape": "diamond", "size": 20},
+    "Factory":     {"tier": 1, "color": "#FFFB1C", "shape": "triangle", "size": 20},
+    "Retailer":    {"tier": 2, "color": "#53FD3D", "shape": "dot",      "size": 20},
+    # "Location":    {"tier": 3, "color": "#6C757D", "shape": "square",   "size": 14},
+    "TimeSlot":    {"tier": 3, "color": "#FF04DE", "shape": "dot",      "size": 10},
 }
 DEFAULT_NODE_STYLE = {"tier": 2, "color": "#AAAAAA", "shape": "dot", "size": 16}
 RING_SPACING_PX = 180  # distance between concentric tiers
@@ -688,15 +688,23 @@ def get_pyvis_graph(
     return html_content
 
 def get_graph_legend_html() -> str:
-    """Small colored-dot legend matching NODE_STYLES, for display above the graph."""
+    """Legend with actual node shapes (dot, diamond, triangle, square)."""
+    shape_styles = {
+        "dot": "border-radius: 50%;",
+        "diamond": "transform: rotate(45deg); border-radius: 0%;",
+        "triangle": "clip-path: polygon(50% 0%, 0% 100%, 100% 100%); border-radius: 0%;",
+        "square": "border-radius: 0%;",
+    }
     swatches = []
-    for label, style in NODE_STYLES.items():
-        shape_note = "" if style["shape"] == "dot" else f" ({style['shape']})"
+    for label, style in NODE_STYLES.items():        
+        shape = style["shape"]
+        # print(label+" "+shape)
+        shape_style = shape_styles.get(shape, shape_styles[shape])
         swatches.append(
             f'<span style="display:inline-flex;align-items:center;margin-right:1.25rem;">'
-            f'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;'
+            f'<span style="display:inline-block;width:12px;height:12px;{shape_style}'
             f'background:{style["color"]};margin-right:0.4rem;"></span>'
-            f'{label}{shape_note}</span>'
+            f'{label}</span>'
         )
     return (
         '<div style="font-size:0.85rem;color:#555;margin-bottom:0.5rem;">'
