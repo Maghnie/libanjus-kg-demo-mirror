@@ -166,7 +166,7 @@ def generate_cypher(user_question: str) -> Optional[str]:
         st.error("Gemini API key not configured")
         return None
 
-    model_name = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash")
+    model_name = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
     client = genai.Client(api_key=api_key)
 
     # Fetch actual values from the DB
@@ -249,28 +249,11 @@ def generate_cypher(user_question: str) -> Optional[str]:
         else:
             print(f"Generated query invalid: {query}")
             # Fallback if validation fails
-            return generate_fallback_query(user_question)
+            return None # generate_fallback_query(user_question)
 
     except Exception as e:
-        st.warning(f"Gemini error: {e}")
-        return generate_fallback_query(user_question)
-    
-def generate_fallback_query(question: str) -> str:
-    """Fallback queries"""
-    question_lower = question.lower()
-    if any(word in question_lower for word in ["gluten-free", "celiac"]):
-        return "MATCH (p:Product) WHERE 'gluten-free' IN p.tags RETURN p.name, p.description, p.tags"
-    if "lactose-free" in question_lower:
-        return "MATCH (p:Product) WHERE 'lactose-free' IN p.tags RETURN p.name, p.description, p.tags"
-    if "organic" in question_lower:
-        return "MATCH (p:Product) WHERE 'organic' IN p.tags RETURN p.name, p.description, p.category"
-    if "labneh" in question_lower:
-        return "MATCH (p:Product {name: 'Organic Labneh'})-[:AVAILABLE_AT]->(r:Retailer)-[:LOCATED_AT]->(l:Location) RETURN r.name, l.neighborhood, l.address"
-    if "hummus" in question_lower:
-        return "MATCH (p:Product {name: 'Classic Hummus'})-[:AVAILABLE_AT]->(r:Retailer)-[:LOCATED_AT]->(l:Location) RETURN r.name, l.neighborhood, l.address"
-    if any(word in question_lower for word in ["open", "sunday", "5pm"]):
-        return "MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {day: 'Sunday'}) WHERE t.start <= '17:00' AND t.end >= '17:00' RETURN r.name, t.day, t.start, t.end, r.location"
-    return "MATCH (p:Product) RETURN p.name, p.category LIMIT 10"
+        # st.error(f"Gemini error: {e}")
+        return str(e) # generate_fallback_query(user_question)
 
 def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
     """Format results - handles nested, flat, AND prefixed (p.name) keys."""
@@ -697,7 +680,7 @@ def main() -> None:
                         st.markdown(f"**{product['name']}**  \n*Tags: {tags}*")
 
         st.divider()
-        if st.button("🔄 Reset Connection", use_container_width=True):
+        if st.button("🔄 Reset Connection", width='stretch'):
             if "neo4j_driver" in st.session_state:
                 del st.session_state.neo4j_driver
             st.cache_data.clear()
@@ -714,12 +697,12 @@ def main() -> None:
                 "Which retailers are open at 10 am on a Sunday and have fat-free milk?"
             ]
             for q in example_questions:
-                if st.button(q, key=f"btn_{hash(q) % 10000}", use_container_width=True):
+                if st.button(q, key=f"btn_{hash(q) % 10000}", width='stretch'):
                     st.session_state["user_input"] = q
                     st.rerun()
             
             st.divider()
-            if st.button("🗑️ Clear Chat", use_container_width=True):
+            if st.button("🗑️ Clear Chat", width='stretch'):
                 st.session_state.messages = []
                 st.rerun()
 
@@ -855,7 +838,7 @@ def main() -> None:
             if stats["categories"]:
                 st.bar_chart(
                     {item["category"]: item["count"] for item in stats["categories"]},
-                    use_container_width=True
+                    width='stretch'
                 )
 
         with col2:
@@ -863,7 +846,7 @@ def main() -> None:
             if stats["brands"]:
                 st.bar_chart(
                     {item["brand"]: item["count"] for item in stats["brands"]},
-                    use_container_width=True
+                    width='stretch'
                 )
 
 if __name__ == "__main__":
