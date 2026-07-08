@@ -166,7 +166,7 @@ def generate_cypher(user_question: str) -> Optional[str]:
         st.error("Gemini API key not configured")
         return None
 
-    model_name = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    model_name = st.secrets.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
     client = genai.Client(api_key=api_key)
 
     # Fetch actual values from the DB
@@ -256,68 +256,58 @@ def generate_cypher(user_question: str) -> Optional[str]:
         return str(e) # generate_fallback_query(user_question)
 
 def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
-    """Format results - handles nested, flat, AND prefixed (p.name) keys."""
+    """Turn raw Cypher results into a natural-language answer via Gemini."""
     if isinstance(results, str):
-        return results
+        return results  # already an error message from execute_query
     if not results:
-        return "No results found."
+        return "No results found for that."
 
-    def extract_value(record: Dict[str, Any], field: str) -> Any:
-        """Extract a value from a Neo4j record, supporting dotted keys and nested dicts."""
-        # 1. Exact match
-        if field in record:
-            return record[field]
-        # 2. Dotted keys like 'r.name' or 'p.description'
-        for key, value in record.items():
-            if key.endswith(f".{field}"):
-                return value
-        # 3. Nested dict (e.g., record['p'] = {'name': ...})
-        for key, value in record.items():
-            if isinstance(value, dict) and field in value:
-                return value[field]
-        # 4. If record has only one key and it's a dict, try that
-        if len(record) == 1:
-            only_value = next(iter(record.values()))
-            if isinstance(only_value, dict) and field in only_value:
-                return only_value[field]
-        return None
+    api_key = st.secrets.get("GEMINI_API_KEY")
+    if not api_key:
+        return "\n".join(f"- {r}" for r in results)  # crude but functional fallback
 
-    question_lower = question.lower()
+    def _normalize(value: Any) -> Any:
+        """Flatten Neo4j Node/Relationship objects to plain dicts."""
+        if hasattr(value, "items") and hasattr(value, "labels"):  # Node-like
+            return dict(value)
+        if isinstance(value, list):
+            return [_normalize(v) for v in value]
+        return value
 
-    if any(word in question_lower for word in ["gluten-free", "lactose-free", "organic", "vegan", "celiac"]):
-        products = []
-        for record in results:
-            name = extract_value(record, "name") or "Unknown"
-            desc = extract_value(record, "description") or ""
-            tags = extract_value(record, "tags") or []
-            products.append(f"**{name}** - {desc} (*{', '.join(tags)}*)")
-        return "\n\n".join(products) if products else "No matching products found."
+    normalized = [{k: _normalize(v) for k, v in r.items()} for r in results]
 
-    elif any(word in question_lower for word in ["where", "location", "near", "find"]):
-        locations = []
-        for record in results:
-            retailer = extract_value(record, "name") or extract_value(record, "r") or "Unknown"
-            neighborhood = extract_value(record, "neighborhood") or extract_value(record, "l.neighborhood") or "Unknown"
-            address = extract_value(record, "address") or extract_value(record, "l.address") or "Unknown"
-            locations.append(f"- **{retailer}** in {neighborhood}: {address}")
-        return "\n".join(locations) if locations else "No locations match your criteria."
+    MAX_RECORDS = 50
+    truncated = len(normalized) > MAX_RECORDS
+    payload = normalized[:MAX_RECORDS]
 
-    elif any(word in question_lower for word in ["open", "close", "hours", "time"]):
-        times = []
-        for record in results:
-            retailer = extract_value(record, "name") or extract_value(record, "r") or "Unknown"
-            day = extract_value(record, "day") or extract_value(record, "t.day") or "Unknown"
-            start = extract_value(record, "start") or extract_value(record, "t.start") or "?"
-            end = extract_value(record, "end") or extract_value(record, "t.end") or "?"
-            times.append(f"- **{retailer}**: {day} {start}–{end}")
-        return "\n".join(times) if times else "No matching hours found."
+    client = genai.Client(api_key=api_key)
+    model_name = st.secrets.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
-    else:
-        items = []
-        for record in results:
-            name = extract_value(record, "name") or "Unknown"
-            items.append(f"- {name}")
-        return "\n".join(items) if items else "No items found."
+    prompt = f"""
+    A user asked: "{question}"
+
+    The knowledge graph returned these results (JSON){" — showing first "
+    + str(MAX_RECORDS) + " of " + str(len(normalized)) if truncated else ""}:
+    {json.dumps(payload, default=str)}
+
+    Write a concise, friendly answer using ONLY the data above.
+    Use markdown. Do not invent products, retailers, or facts not present in the results.
+    If the results are empty or irrelevant, say so plainly.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=8192),
+        )
+        text = response.text
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+        return "\n".join(f"- {r}" for r in results)  # fallback if empty/blocked
+    except Exception as e:
+        print(f"format_answer Gemini error: {e}")
+        return "\n".join(f"- {r}" for r in results)  # fallback on API failure
     
 def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
     """Fetch product catalog with explicit error handling."""
