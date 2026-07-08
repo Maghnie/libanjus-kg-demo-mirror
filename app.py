@@ -514,6 +514,14 @@ def get_pyvis_graph(limit: int = 200) -> str:
         # Add edge with relationship type as label
         net.add_edge(n.element_id, m.element_id, label=r.type, title=r.type)
 
+    net.repulsion()
+    net.set_options(
+        '{"edges": ' \
+            '{"font": {"size": 0}, ' \
+            '"smooth": {"type": "continuous"}}, ' \
+            '"interaction": {"hover": true}' \
+        '}')
+
     # Generate HTML in memory
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp:
         net.save_graph(tmp.name)
@@ -657,7 +665,7 @@ def main() -> None:
                 html = get_pyvis_graph(limit=200)
                 if html and len(html) > 100:
                     # Use a container with fixed height for better UX
-                    st.components.v1.html(html, height=650, scrolling=True)
+                    st.iframe(html, height=650)
                 else:
                     st.warning("No graph data to display.")
             except Exception as e:
