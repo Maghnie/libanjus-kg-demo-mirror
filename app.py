@@ -48,7 +48,7 @@ NODE_STYLES: Dict[str, Dict[str, Any]] = {
     # "Location":    {"tier": 3, "color": "#6C757D", "shape": "square",   "size": 14},
     "TimeSlot":    {"tier": 3, "color": "#FF04DE", "shape": "dot",      "size": 10},
 }
-DEFAULT_NODE_STYLE = {"tier": 2, "color": "#AAAAAA", "shape": "dot", "size": 16}
+DEFAULT_NODE_STYLE: Dict[str, Any] = {"tier": 2, "color": "#AAAAAA", "shape": "dot", "size": 16}
 RING_SPACING_PX = 180  # distance between concentric tiers
 
 # --- Helper Functions ---
@@ -231,7 +231,10 @@ def generate_cypher(user_question: str) -> Optional[str]:
         )
         print(f"Generated response: {response}")
 
-        query = response.text.strip()
+        if isinstance(response.text, str):
+            query = response.text.strip()
+        else:
+            query = str(response.text).strip()
 
         # Clean up if model still outputs markdown
         if "```" in query:
@@ -356,7 +359,7 @@ def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
 
 def _node_style(labels) -> Dict[str, Any]:
     """Look up the visual style for a node's primary label."""
-    primary = list(labels)[0] if labels else None
+    primary = list(labels)[0] if labels else ""
     return NODE_STYLES.get(primary, DEFAULT_NODE_STYLE)
 
 def _compute_tiered_layout(G: "nx.Graph", center_id: Optional[str] = None) -> Dict[str, tuple]:
@@ -707,8 +710,7 @@ def main() -> None:
             example_questions = [
                 "As a celiac, what sweet products can I get?",
                 "Where can I get organic Labneh near Al-Hamra?",
-                "Is there fat-free milk?",
-                "Which stores are open on Sunday at 5pm?",
+                "Which retailers are open at 10 am on a Sunday and have fat-free milk?"
             ]
             for q in example_questions:
                 if st.button(q, key=f"btn_{hash(q) % 10000}", use_container_width=True):
