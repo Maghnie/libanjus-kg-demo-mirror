@@ -8,9 +8,13 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 # import requests
 import streamlit as st
-from neo4j import GraphDatabase, Driver
+from neo4j import GraphDatabase, Driver, RoutingControl, Result
 import google.genai as genai
 from google.genai import types
+# from neo4j_viz.gds import from_gds
+from neo4j_viz.neo4j import from_neo4j
+import tempfile
+from pyvis.network import Network
 
 # --- Constants ---
 SCHEMA = """
@@ -67,6 +71,35 @@ def get_neo4j_driver() -> Driver:
             st.stop()  # Stop the app if connection fails
 
     return st.session_state.neo4j_driver
+
+def get_neo4j_graph():
+    # aura_instance_id = st.secrets["AURA_INSTANCEID"]
+    # uri = f"neo4j+s://{aura_instance_id}.databases.neo4j.io:7687"
+    # auth = (st.secrets["NEO4J_USER"], st.secrets["NEO4J_PASSWORD"])
+    # with GraphDatabase.driver(uri, auth=auth) as driver:
+    #     driver.verify_connectivity()
+    #     result = driver.execute_query(
+    #         "MATCH (n)-[r]->(m) RETURN n,r,m",
+    #         database_=st.secrets["NEO4J_DATABASE"],
+    #         routing_=RoutingControl.READ
+    #     )
+    # VG = from_neo4j(result)
+    driver = get_neo4j_driver()  # reuse your cached driver
+    with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
+        result = session.run(
+            "MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 200"  # limit to avoid overload
+        )
+        # Optional: print record count for debugging
+        # records = list(result)
+        # st.session_state["graph_record_count"] = len(records)
+        # Re‑create result iterator (or pass records if from_neo4j accepts lists)
+        # Many implementations accept a Result or a list of Records.
+        # If from_neo4j requires a Result, you can't re‑iterate; instead, call session.run again.
+        # Safer: pass the list of records if from_neo4j supports it.
+        # Check the package docs – often it accepts an iterable of records.
+        VG = from_neo4j(result)  # pass list of dict-like records
+
+    return VG.render()
 
 @st.cache_data(ttl=300)
 def _cached_query(query: str) -> List[Dict[str, Any]]:
@@ -385,6 +418,109 @@ def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
         })
     return catalog
 
+@st.cache_data(ttl=3600)
+def fetch_graph_data(limit: int = 200) -> tuple[list, list]:
+    """
+    Fetch graph nodes and relationships from Neo4j.
+    Returns (nodes, edges) where:
+      - nodes: list of dicts with 'id', 'label', and optional 'properties'
+      - edges: list of dicts with 'source', 'target', and 'label'
+    """
+    # Use a limited query to avoid overwhelming the browser
+    query = """
+    MATCH (n)-[r]->(m)
+    RETURN n, r, m
+    LIMIT $limit
+    """
+    result = execute_query(query, params={"limit": limit})
+    if isinstance(result, str):  # error string
+        st.error(f"Graph query failed: {result}")
+        return [], []
+
+    nodes = {}
+    edges = []
+    for record in result:
+        # Each record has keys: 'n', 'r', 'm' (from the query)
+        n = record["n"]
+        m = record["m"]
+        r = record["r"]
+
+        # Add source node
+        nodes[n.element_id] = { #element_id from neo4j internal ID system
+            "id": n.element_id,
+            "label": list(n.labels)[0] if n.labels else "Node",
+            "properties": dict(n.items()),  # includes name, etc.
+        }
+        # Add target node
+        nodes[m.element_id] = {
+            "id": m.element_id,
+            "label": list(m.labels)[0] if m.labels else "Node",
+            "properties": dict(m.items()),
+        }
+        # Add relationship
+        edges.append({
+            "source": n.element_id,
+            "target": m.element_id,
+            "label": r.type,
+        })
+
+    return list(nodes.values()), edges
+
+@st.cache_data(ttl=3600)
+def get_pyvis_graph(limit: int = 200) -> str:
+    """
+    Fetch graph data from Neo4j and render it as a PyVis HTML string.
+    Limits the number of relationships to avoid browser overload.
+    """
+    driver = get_neo4j_driver()
+    with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
+        # Fetch nodes and relationships with a limit
+        result = session.run(
+            """
+            MATCH (n)-[r]->(m)
+            RETURN n, r, m
+            LIMIT $limit
+            """,
+            limit=limit
+        )
+        records = list(result)
+
+    if not records:
+        return "<p>No graph data found.</p>"
+
+    # Build a PyVis network
+    net = Network(height="600px", width="100%", directed=True, notebook=False)
+
+    # Keep track of added node IDs to avoid duplicates
+    added_nodes = set()
+
+    for record in records:
+        n = record["n"]
+        m = record["m"]
+        r = record["r"]
+
+        # Add source node
+        if n.element_id not in added_nodes:
+            label = n.get("name", list(n.labels)[0] if n.labels else "Node")
+            net.add_node(n.element_id, label=label, title=label)
+            added_nodes.add(n.element_id)
+
+        # Add target node
+        if m.element_id not in added_nodes:
+            label = m.get("name", list(m.labels)[0] if m.labels else "Node")
+            net.add_node(m.element_id, label=label, title=label)
+            added_nodes.add(m.element_id)
+
+        # Add edge with relationship type as label
+        net.add_edge(n.element_id, m.element_id, label=r.type, title=r.type)
+
+    # Generate HTML in memory
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp:
+        net.save_graph(tmp.name)
+        with open(tmp.name, "r", encoding="utf-8") as f:
+            html_content = f.read()
+    return html_content
+
 # --- Streamlit App ---
 def main() -> None:
     """Main application entry point."""
@@ -431,7 +567,10 @@ def main() -> None:
     # LOAD CATALOG BEFORE SIDEBAR RENDERS to prevent race condition
     catalog = get_product_catalog()
 
-    tab_catalog, tab_chat = st.tabs(["🗃 Data", "💬 Chat"], default="💬 Chat")
+    tab_catalog, tab_chat, tab_graph = st.tabs(["🗃 Data", 
+                                                "💬 Chat", 
+                                                "🌐 Interactive Graph"], 
+                                                default="🌐 Interactive Graph")
 
     with tab_catalog:
         st.header("📚 Product Catalog")        
@@ -508,6 +647,23 @@ def main() -> None:
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
+    
+    with tab_graph:
+        st.header("🌐 Interactive Knowledge Graph")
+        st.caption("Visualisation of up to 200 relationships (you can adjust the LIMIT in the code).")
+
+        with st.spinner("Building graph..."):
+            try:
+                html = get_pyvis_graph(limit=200)
+                if html and len(html) > 100:
+                    # Use a container with fixed height for better UX
+                    st.components.v1.html(html, height=650, scrolling=True)
+                else:
+                    st.warning("No graph data to display.")
+            except Exception as e:
+                st.error(f"Failed to render graph: {e}")
+                import traceback
+                st.code(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
