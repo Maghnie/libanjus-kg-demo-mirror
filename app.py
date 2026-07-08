@@ -89,30 +89,12 @@ def get_neo4j_driver() -> Driver:
     return st.session_state.neo4j_driver
 
 def get_neo4j_graph():
-    # aura_instance_id = st.secrets["AURA_INSTANCEID"]
-    # uri = f"neo4j+s://{aura_instance_id}.databases.neo4j.io:7687"
-    # auth = (st.secrets["NEO4J_USER"], st.secrets["NEO4J_PASSWORD"])
-    # with GraphDatabase.driver(uri, auth=auth) as driver:
-    #     driver.verify_connectivity()
-    #     result = driver.execute_query(
-    #         "MATCH (n)-[r]->(m) RETURN n,r,m",
-    #         database_=st.secrets["NEO4J_DATABASE"],
-    #         routing_=RoutingControl.READ
-    #     )
-    # VG = from_neo4j(result)
     driver = get_neo4j_driver()  # reuse your cached driver
     with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
         result = session.run(
             "MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 200"  # limit to avoid overload
         )
-        # Optional: print record count for debugging
-        # records = list(result)
-        # st.session_state["graph_record_count"] = len(records)
-        # Re‑create result iterator (or pass records if from_neo4j accepts lists)
-        # Many implementations accept a Result or a list of Records.
-        # If from_neo4j requires a Result, you can't re‑iterate; instead, call session.run again.
-        # Safer: pass the list of records if from_neo4j supports it.
-        # Check the package docs – often it accepts an iterable of records.
+
         VG = from_neo4j(result)  # pass list of dict-like records
 
     return VG.render()
@@ -177,78 +159,6 @@ def validate_cypher(query: str) -> bool:
         return False
     return True
 
-# def validate_cypher(query: str) -> bool:
-#     """Strict validation: must have RETURN/FINISH/UPDATE and no syntax errors."""
-#     if not query:
-#         return False
-#     query_lower = query.lower().strip()
-#     # Must start with valid clause and contain RETURN/FINISH/UPDATE
-#     if not query_lower.startswith(("match", "return", "create", "finish", "update")):
-#         return False
-#     if "return" not in query_lower and "finish" not in query_lower and "update" not in query_lower:
-#         return False
-#     # Reject known bad patterns
-#     if "{tags:" in query or "{tags: [" in query:
-#         return False
-#     return True
-
-# def generate_cypher(user_question: str) -> Optional[str]:
-#     """Generate Cypher with strict rules for free tier reliability."""
-#     api_key = st.secrets.get("GEMINI_API_KEY")
-#     if not api_key:
-#         st.error("GEMINI API key not configured")
-#         return None
-
-#     prompt = f"""
-#     You are a Neo4j Cypher expert.
-
-#     Given the following graph schema, generate a read-only Cypher query to answer the user's question. You MUST follow these rules:
-
-#     Schema: ... (list your nodes, relationships, and properties).
-
-#     Syntax: Use single quotes for strings ('value'). Use aliases like p for Product and r for Retailer.
-
-#     Validity: The query MUST be syntactically correct and end with a RETURN statement.
-
-#     Output: Return ONLY the Cypher query. Do not include any explanations, markdown, or extra text.
-
-#     Example 1:
-#     User: "Which stores are open on Sunday at 5pm?"
-#     Cypher: MATCH (r:Retailer)-[:OPEN_AT]->(t:TimeSlot {{day: 'Sunday'}}) WHERE t.start <= '17:00' AND t.end >= '17:00' RETURN r.name, t.day, t.start, t.end
-
-#     Example 2:
-#     User: "What Maccaw juices are available?"
-#     Cypher: MATCH (p:Product)-[:AVAILABLE_AT]->(r:Retailer) WHERE p.brand = 'Maccaw' RETURN p.name, r.name
-
-#     User Question: {user_question}
-#     """
-
-#     url = "https://api.mistral.ai/v1/chat/completions"
-#     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-#     payload = {
-#         "model": "mistral-tiny",
-#         "messages": [{"role": "user", "content": prompt}],
-#         "temperature": 0.5,  
-#         "max_tokens": 500,
-#     }
-
-#     try:
-#         response = requests.post(url, headers=headers, json=payload, timeout=30)
-#         response.raise_for_status()
-#         query = response.json()["choices"][0]["message"]["content"].strip()
-
-#         # Clean up
-#         if "```" in query:
-#             query = query.split("```")[1].split("```")[0].strip()
-#         if query.startswith(("cypher", "Cypher")):
-#             query = query.split("\n")[1] if "\n" in query else query
-
-#         print(query)
-#         return query if validate_cypher(query) else generate_fallback_query(user_question)
-#     except Exception as e:
-#         print(e)
-#         return generate_fallback_query(user_question)
-    
 def generate_cypher(user_question: str) -> Optional[str]:
     """Generate Cypher using Gemini with a strict system prompt."""
     api_key = st.secrets.get("GEMINI_API_KEY")
@@ -444,54 +354,6 @@ def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
         })
     return catalog
 
-# @st.cache_data(ttl=3600)
-# def fetch_graph_data(limit: int = 200) -> tuple[list, list]:
-#     """
-#     Fetch graph nodes and relationships from Neo4j.
-#     Returns (nodes, edges) where:
-#       - nodes: list of dicts with 'id', 'label', and optional 'properties'
-#       - edges: list of dicts with 'source', 'target', and 'label'
-#     """
-#     # Use a limited query to avoid overwhelming the browser
-#     query = """
-#     MATCH (n)-[r]->(m)
-#     RETURN n, r, m
-#     LIMIT $limit
-#     """
-#     result = execute_query(query, params={"limit": limit})
-#     if isinstance(result, str):  # error string
-#         st.error(f"Graph query failed: {result}")
-#         return [], []
-
-#     nodes = {}
-#     edges = []
-#     for record in result:
-#         # Each record has keys: 'n', 'r', 'm' (from the query)
-#         n = record["n"]
-#         m = record["m"]
-#         r = record["r"]
-
-#         # Add source node
-#         nodes[n.element_id] = { #element_id from neo4j internal ID system
-#             "id": n.element_id,
-#             "label": list(n.labels)[0] if n.labels else "Node",
-#             "properties": dict(n.items()),  # includes name, etc.
-#         }
-#         # Add target node
-#         nodes[m.element_id] = {
-#             "id": m.element_id,
-#             "label": list(m.labels)[0] if m.labels else "Node",
-#             "properties": dict(m.items()),
-#         }
-#         # Add relationship
-#         edges.append({
-#             "source": n.element_id,
-#             "target": m.element_id,
-#             "label": r.type,
-#         })
-
-#     return list(nodes.values()), edges
-
 def _node_style(labels) -> Dict[str, Any]:
     """Look up the visual style for a node's primary label."""
     primary = list(labels)[0] if labels else None
@@ -568,14 +430,14 @@ def get_pyvis_graph(
     with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
         if center_node:
             result = session.run(
-                """
-                MATCH path = (center:Product {name: $center_node})-[*1..%d]-(other)
+                f"""
+                MATCH path = (center:Product {{name: $center_node}})-[*1..{max(1, depth)}]-(other)
                 WITH relationships(path) AS rels
                 UNWIND rels AS r
                 WITH DISTINCT r, startNode(r) AS n, endNode(r) AS m
                 RETURN n, r, m
                 LIMIT $limit
-                """ % max(1, depth),
+                """,
                 center_node=center_node,
                 limit=limit,
             )
