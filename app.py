@@ -574,6 +574,60 @@ def get_graph_legend_html() -> str:
         + "</div>"
     )
 
+@st.cache_data(ttl=3600)
+def get_graph_statistics():
+    """Fetch all graph statistics in a single cached call."""
+    driver = get_neo4j_driver()
+    with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
+        # Basic counts
+        product_count = session.run("MATCH (p:Product) RETURN count(p)").single()[0]
+        retailer_count = session.run("MATCH (r:Retailer) RETURN count(r)").single()[0]
+        distributor_count = session.run("MATCH (d:Distributor) RETURN count(d)").single()[0]
+        factory_count = session.run("MATCH (f:Factory) RETURN count(f)").single()[0]
+        location_count = session.run("MATCH (l:Location) RETURN count(l)").single()[0]
+        relationship_count = session.run("MATCH ()-[r]->() RETURN count(r)").single()[0]
+
+        # Top products by availability
+        top_products = session.run("""
+            MATCH (p:Product)-[:AVAILABLE_AT]->(r:Retailer)
+            RETURN p.name AS product, count(r) AS count
+            ORDER BY count DESC LIMIT 5
+        """).data()
+
+        # Top retailers by product count
+        top_retailers = session.run("""
+            MATCH (p:Product)-[:AVAILABLE_AT]->(r:Retailer)
+            RETURN r.name AS retailer, count(p) AS count
+            ORDER BY count DESC LIMIT 5
+        """).data()
+
+        # Category distribution
+        categories = session.run("""
+            MATCH (p:Product)
+            RETURN p.category AS category, count(p) AS count
+            ORDER BY count DESC
+        """).data()
+
+        # Brand distribution
+        brands = session.run("""
+            MATCH (p:Product)
+            RETURN p.brand AS brand, count(p) AS count
+            ORDER BY count DESC
+        """).data()
+
+        return {
+            "product_count": product_count,
+            "retailer_count": retailer_count,
+            "distributor_count": distributor_count,
+            "factory_count": factory_count,
+            "location_count": location_count,
+            "relationship_count": relationship_count,
+            "top_products": top_products,
+            "top_retailers": top_retailers,
+            "categories": categories,
+            "brands": brands,
+        }
+    
 # --- Streamlit App ---
 def main() -> None:
     """Main application entry point."""
@@ -620,10 +674,12 @@ def main() -> None:
     # LOAD CATALOG BEFORE SIDEBAR RENDERS to prevent race condition
     catalog = get_product_catalog()
 
-    tab_catalog, tab_chat, tab_graph = st.tabs(["🗃 Data", 
-                                                "💬 Chat", 
-                                                "🌐 Interactive Graph"], 
-                                                default="🌐 Interactive Graph")
+    tab_catalog, tab_chat, tab_graph, tab_stats = st.tabs([
+        "🗃 Data",
+        "💬 Chat",
+        "🌐 Interactive Graph",
+        "📊 Statistics"
+    ], default="🌐 Interactive Graph")
 
     with tab_catalog:
         st.header("📚 Product Catalog")        
@@ -644,12 +700,12 @@ def main() -> None:
             st.rerun()
 
     with tab_chat:
-        col_sample_qs, col_chat_box = st.columns(2)
+        col_sample_qs, col_chat_box = st.columns([0.2,0.8])
         
         with col_sample_qs:
             st.markdown("**Try These:**")
             example_questions = [
-                "As a celiac, which products can I get?",
+                "As a celiac, what sweet products can I get?",
                 "Where can I get organic Labneh near Al-Hamra?",
                 "Is there fat-free milk?",
                 "Which stores are open on Sunday at 5pm?",
@@ -658,6 +714,11 @@ def main() -> None:
                 if st.button(q, key=f"btn_{hash(q) % 10000}", use_container_width=True):
                     st.session_state["user_input"] = q
                     st.rerun()
+            
+            st.divider()
+            if st.button("🗑️ Clear Chat", use_container_width=True):
+                st.session_state.messages = []
+                st.rerun()
 
         with col_chat_box:
             st.markdown("**Or start typing:**")
@@ -695,11 +756,6 @@ def main() -> None:
                     st.markdown(answer)
 
                 st.session_state.messages.append({"role": "assistant", "content": answer})
-
-        st.divider()
-        if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.messages = []
-            st.rerun()
     
     with tab_graph:
         st.header("🌐 Interactive Knowledge Graph")
@@ -743,6 +799,69 @@ def main() -> None:
                     st.error(f"Failed to render graph: {e}")
                     import traceback
                     st.code(traceback.format_exc())
+
+    with tab_stats:
+        st.header("📊 Knowledge Graph Statistics")
+
+        # Custom styling for metrics
+        st.markdown("""
+        <style>
+            [data-testid="stMetricValue"] {
+                font-size: 1.8rem;
+                font-weight: bold;
+            }
+            .stMetric {
+                background-color: #f8f9fa;
+                padding: 12px;
+                border-radius: 8px;
+                border-left: 4px solid #30A9FA;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+
+        stats = get_graph_statistics()
+
+        # === Key Metrics Row ===
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("🍎 Products", stats["product_count"])
+        col2.metric("🏪 Retailers", stats["retailer_count"])
+        col3.metric("📦 Distributors", stats["distributor_count"])
+        col4.metric("🏭 Factories", stats["factory_count"])
+        col5.metric("🔗 Relationships", stats["relationship_count"])
+
+        st.divider()
+
+        # === Top Performers ===
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("🏆 Most Available Products")
+            for item in stats["top_products"]:
+                st.metric(item["product"], f"{item['count']} retailers")
+
+        with col2:
+            st.subheader("🏪 Retailers with Most Products")
+            for item in stats["top_retailers"]:
+                st.metric(item["retailer"], f"{item['count']} products")
+
+        st.divider()
+
+        # === Distributions (Bar Charts) ===
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("📦 Product Categories")
+            if stats["categories"]:
+                st.bar_chart(
+                    {item["category"]: item["count"] for item in stats["categories"]},
+                    use_container_width=True
+                )
+
+        with col2:
+            st.subheader("🏷️ Product Brands")
+            if stats["brands"]:
+                st.bar_chart(
+                    {item["brand"]: item["count"] for item in stats["brands"]},
+                    use_container_width=True
+                )
 
 if __name__ == "__main__":
     main()
