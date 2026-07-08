@@ -14,7 +14,9 @@ from google.genai import types
 # from neo4j_viz.gds import from_gds
 from neo4j_viz.neo4j import from_neo4j
 import tempfile
+import math
 from pyvis.network import Network
+import networkx as nx
 
 # --- Constants ---
 SCHEMA = """
@@ -34,6 +36,20 @@ Relationships:
 - (Retailer)-[:LOCATED_AT]->(Location)
 - (Retailer)-[:OPEN_AT]->(TimeSlot)
 """
+
+# --- Graph visual styling ---
+# Tier controls the concentric ring each label is placed on (0 = center).
+# Color/shape/size drive the legend and the per-node visual encoding.
+NODE_STYLES: Dict[str, Dict[str, Any]] = {
+    "Product":     {"tier": 0, "color": "#2E8B57", "shape": "dot",      "size": 26},
+    "Distributor": {"tier": 1, "color": "#F4A300", "shape": "diamond", "size": 20},
+    "Factory":     {"tier": 1, "color": "#8E5FD9", "shape": "triangle", "size": 20},
+    "Retailer":    {"tier": 2, "color": "#3D8BFD", "shape": "dot",      "size": 20},
+    "Location":    {"tier": 3, "color": "#6C757D", "shape": "square",   "size": 14},
+    "TimeSlot":    {"tier": 3, "color": "#B0B7BF", "shape": "dot",      "size": 10},
+}
+DEFAULT_NODE_STYLE = {"tier": 2, "color": "#AAAAAA", "shape": "dot", "size": 16}
+RING_SPACING_PX = 180  # distance between concentric tiers
 
 # --- Helper Functions ---
 def load_company_config(company_name: str = "libanjus") -> Dict[str, Any]:
@@ -133,6 +149,16 @@ def get_distinct_values() -> Dict[str, List[str]]:
         "tags": [t for t in tags if t is not None],
         "retailers": [r for r in retailer_names if r is not None],
     }
+
+@st.cache_data(ttl=3600)
+def get_product_names() -> List[str]:
+    """Distinct product names, used to populate the graph-scoping selectbox."""
+    driver = get_neo4j_driver()
+    with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
+        names = session.run(
+            "MATCH (p:Product) RETURN DISTINCT p.name AS name ORDER BY name"
+        ).value()
+    return [n for n in names if n]
 
 def validate_cypher(query: str) -> bool:
     """Light validation: must have a RETURN and no dangerous keywords."""
@@ -418,109 +444,241 @@ def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
         })
     return catalog
 
+# @st.cache_data(ttl=3600)
+# def fetch_graph_data(limit: int = 200) -> tuple[list, list]:
+#     """
+#     Fetch graph nodes and relationships from Neo4j.
+#     Returns (nodes, edges) where:
+#       - nodes: list of dicts with 'id', 'label', and optional 'properties'
+#       - edges: list of dicts with 'source', 'target', and 'label'
+#     """
+#     # Use a limited query to avoid overwhelming the browser
+#     query = """
+#     MATCH (n)-[r]->(m)
+#     RETURN n, r, m
+#     LIMIT $limit
+#     """
+#     result = execute_query(query, params={"limit": limit})
+#     if isinstance(result, str):  # error string
+#         st.error(f"Graph query failed: {result}")
+#         return [], []
+
+#     nodes = {}
+#     edges = []
+#     for record in result:
+#         # Each record has keys: 'n', 'r', 'm' (from the query)
+#         n = record["n"]
+#         m = record["m"]
+#         r = record["r"]
+
+#         # Add source node
+#         nodes[n.element_id] = { #element_id from neo4j internal ID system
+#             "id": n.element_id,
+#             "label": list(n.labels)[0] if n.labels else "Node",
+#             "properties": dict(n.items()),  # includes name, etc.
+#         }
+#         # Add target node
+#         nodes[m.element_id] = {
+#             "id": m.element_id,
+#             "label": list(m.labels)[0] if m.labels else "Node",
+#             "properties": dict(m.items()),
+#         }
+#         # Add relationship
+#         edges.append({
+#             "source": n.element_id,
+#             "target": m.element_id,
+#             "label": r.type,
+#         })
+
+#     return list(nodes.values()), edges
+
+def _node_style(labels) -> Dict[str, Any]:
+    """Look up the visual style for a node's primary label."""
+    primary = list(labels)[0] if labels else None
+    return NODE_STYLES.get(primary, DEFAULT_NODE_STYLE)
+
+def _compute_tiered_layout(G: "nx.Graph", center_id: Optional[str] = None) -> Dict[str, tuple]:
+    """
+    Deterministic concentric layout.
+
+    When `center_id` is given (product-focused view), the ring a node
+    lands on is its graph-hop distance from that node — so the chosen
+    product is always alone at the origin and everything else fans out
+    by how far it actually is from it, regardless of label. This is what
+    gives the view real "focus": without it, sibling Products reached via
+    a shared Distributor/Factory would incorrectly get pulled to the
+    center ring too (label-based tiering can't tell a focus node from a
+    same-labeled neighbor).
+
+    When no center is given (global view), falls back to the static
+    label-based tier (Product -> Factory/Distributor -> Retailer ->
+    Location/TimeSlot) stored on each node as "label_tier".
+
+    Either way this is computed once in plain Python — no simulation, no
+    settling time, identical output every rerun.
+    """
+    if center_id is not None and center_id in G:
+        distances = nx.single_source_shortest_path_length(G, center_id)
+        max_known = max(distances.values(), default=0)
+        tier_of = lambda node_id: distances.get(node_id, max_known + 1)
+    else:
+        tier_of = lambda node_id: G.nodes[node_id].get("label_tier", DEFAULT_NODE_STYLE["tier"])
+
+    tiers: Dict[int, List[str]] = {}
+    for node_id in G.nodes:
+        tiers.setdefault(tier_of(node_id), []).append(node_id)
+
+    pos: Dict[str, tuple] = {}
+    for tier, node_ids in sorted(tiers.items()):
+        radius = tier * RING_SPACING_PX
+        count = len(node_ids)
+        if radius == 0:
+            # The focus node (or, in global view, all Product nodes) sits at the origin.
+            for i, node_id in enumerate(node_ids):
+                offset = 40 * i  # nudge apart only if more than one lands here
+                pos[node_id] = (offset, 0)
+            continue
+        for i, node_id in enumerate(node_ids):
+            angle = (2 * math.pi * i) / count
+            pos[node_id] = (radius * math.cos(angle), radius * math.sin(angle))
+    return pos
+
 @st.cache_data(ttl=3600)
-def fetch_graph_data(limit: int = 200) -> tuple[list, list]:
+def get_pyvis_graph(
+    limit: int = 200,
+    center_node: Optional[str] = None,
+    depth: int = 2,
+) -> str:
     """
-    Fetch graph nodes and relationships from Neo4j.
-    Returns (nodes, edges) where:
-      - nodes: list of dicts with 'id', 'label', and optional 'properties'
-      - edges: list of dicts with 'source', 'target', and 'label'
-    """
-    # Use a limited query to avoid overwhelming the browser
-    query = """
-    MATCH (n)-[r]->(m)
-    RETURN n, r, m
-    LIMIT $limit
-    """
-    result = execute_query(query, params={"limit": limit})
-    if isinstance(result, str):  # error string
-        st.error(f"Graph query failed: {result}")
-        return [], []
+    Fetch graph data from Neo4j and render it as a static, styled PyVis
+    HTML string.
 
-    nodes = {}
-    edges = []
-    for record in result:
-        # Each record has keys: 'n', 'r', 'm' (from the query)
-        n = record["n"]
-        m = record["m"]
-        r = record["r"]
+    If `center_node` is given, the query is scoped to that Product's
+    ego-network up to `depth` hops (keeps the default view small and
+    legible). Otherwise it falls back to a global, limited sample.
 
-        # Add source node
-        nodes[n.element_id] = { #element_id from neo4j internal ID system
-            "id": n.element_id,
-            "label": list(n.labels)[0] if n.labels else "Node",
-            "properties": dict(n.items()),  # includes name, etc.
-        }
-        # Add target node
-        nodes[m.element_id] = {
-            "id": m.element_id,
-            "label": list(m.labels)[0] if m.labels else "Node",
-            "properties": dict(m.items()),
-        }
-        # Add relationship
-        edges.append({
-            "source": n.element_id,
-            "target": m.element_id,
-            "label": r.type,
-        })
-
-    return list(nodes.values()), edges
-
-@st.cache_data(ttl=3600)
-def get_pyvis_graph(limit: int = 200) -> str:
-    """
-    Fetch graph data from Neo4j and render it as a PyVis HTML string.
-    Limits the number of relationships to avoid browser overload.
+    The layout is precomputed in Python (concentric rings by hop-distance
+    from the focus product, or by label in global view) and handed to
+    vis.js with physics disabled — so the graph is perfectly stationary
+    and identical on every rerun, instead of depending on a force
+    simulation that never fully settles. Nodes stay manually draggable;
+    only the automatic physics-driven movement is turned off.
     """
     driver = get_neo4j_driver()
     with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
-        # Fetch nodes and relationships with a limit
-        result = session.run(
-            """
-            MATCH (n)-[r]->(m)
-            RETURN n, r, m
-            LIMIT $limit
-            """,
-            limit=limit
-        )
+        if center_node:
+            result = session.run(
+                """
+                MATCH path = (center:Product {name: $center_node})-[*1..%d]-(other)
+                WITH relationships(path) AS rels
+                UNWIND rels AS r
+                WITH DISTINCT r, startNode(r) AS n, endNode(r) AS m
+                RETURN n, r, m
+                LIMIT $limit
+                """ % max(1, depth),
+                center_node=center_node,
+                limit=limit,
+            )
+        else:
+            result = session.run(
+                """
+                MATCH (n)-[r]->(m)
+                RETURN n, r, m
+                LIMIT $limit
+                """,
+                limit=limit,
+            )
         records = list(result)
 
     if not records:
-        return "<p>No graph data found.</p>"
+        return "<p>No graph data found for this selection.</p>"
 
-    # Build a PyVis network
-    net = Network(height="600px", width="100%", directed=True, notebook=False)
-
-    # Keep track of added node IDs to avoid duplicates
-    added_nodes = set()
+    # --- Build a networkx graph purely to compute a deterministic layout ---
+    G = nx.Graph()
+    node_meta: Dict[str, Dict[str, Any]] = {}
+    center_id: Optional[str] = None
 
     for record in records:
-        n = record["n"]
-        m = record["m"]
-        r = record["r"]
+        n, m, r = record["n"], record["m"], record["r"]
+        for node in (n, m):
+            if node.element_id not in node_meta:
+                style = _node_style(node.labels)
+                label = node.get("name") or (list(node.labels)[0] if node.labels else "Node")
+                is_center = bool(center_node) and "Product" in node.labels and label == center_node
+                if is_center:
+                    center_id = node.element_id
+                node_meta[node.element_id] = {
+                    "label": label,
+                    "group": list(node.labels)[0] if node.labels else "Node",
+                    "is_center": is_center,
+                    **style,
+                }
+                G.add_node(node.element_id, label_tier=style["tier"])
+        G.add_edge(n.element_id, m.element_id)
 
-        # Add source node
-        if n.element_id not in added_nodes:
-            label = n.get("name", list(n.labels)[0] if n.labels else "Node")
-            net.add_node(n.element_id, label=label, title=label)
-            added_nodes.add(n.element_id)
+    positions = _compute_tiered_layout(G, center_id=center_id)
 
-        # Add target node
-        if m.element_id not in added_nodes:
-            label = m.get("name", list(m.labels)[0] if m.labels else "Node")
-            net.add_node(m.element_id, label=label, title=label)
-            added_nodes.add(m.element_id)
+    # --- Build the PyVis network with physics fully disabled ---
+    net = Network(height="650px", width="100%", directed=True, notebook=False)
 
-        # Add edge with relationship type as label
-        net.add_edge(n.element_id, m.element_id, label=r.type, title=r.type)
+    for node_id, meta in node_meta.items():
+        x, y = positions.get(node_id, (0, 0))
+        node_kwargs = dict(
+            label=meta["label"],
+            title=f"{meta['group']}: {meta['label']}" + (" ★ focus" if meta["is_center"] else ""),
+            shape=meta["shape"],
+            size=meta["size"] + (8 if meta["is_center"] else 0),
+            group=meta["group"],
+            x=x,
+            y=y,
+            physics=False,   # stops the physics engine from moving it...
+            # ...but we deliberately do NOT set "fixed": vis.js treats
+            # "fixed" as also blocking manual drag, which is why nodes
+            # were frozen in place and un-draggable before. Leaving nodes
+            # un-fixed with physics disabled means: no automatic drift,
+            # but the person can still pick up and reposition any node.
+        )
+        if meta["is_center"]:
+            node_kwargs["color"] = {"background": meta["color"], "border": "#B8860B", "highlight": {"background": meta["color"], "border": "#B8860B"}}
+            node_kwargs["borderWidth"] = 4
+        else:
+            node_kwargs["color"] = meta["color"]
+        net.add_node(node_id, **node_kwargs)
 
-    net.repulsion()
-    net.set_options(
-        '{"edges": ' \
-            '{"font": {"size": 0}, ' \
-            '"smooth": {"type": "continuous"}}, ' \
-            '"interaction": {"hover": true}' \
-        '}')
+    for record in records:
+        n, m, r = record["n"], record["m"], record["r"]
+        net.add_edge(
+            n.element_id,
+            m.element_id,
+            title=r.type,          # relationship type shows on hover only
+            color="#C7CCD1",
+            arrows="to",
+            width=1,
+        )
+
+    # Physics off globally too (belt-and-braces alongside per-node "physics": False).
+    # Edge labels are hidden by default (font size 0) to kill the label clutter;
+    # hovering a node/edge reveals its `title` tooltip instead.
+    net.set_options("""
+    {
+      "physics": { "enabled": false },
+      "layout": { "improvedLayout": false },
+      "edges": {
+        "font": { "size": 0 },
+        "smooth": { "type": "continuous" },
+        "color": { "inherit": false }
+      },
+      "nodes": {
+        "font": { "size": 14, "face": "Inter, Arial, sans-serif" }
+      },
+      "interaction": {
+        "hover": true,
+        "dragNodes": true,
+        "zoomView": true,
+        "tooltipDelay": 100
+      }
+    }
+    """)
 
     # Generate HTML in memory
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp:
@@ -528,6 +686,23 @@ def get_pyvis_graph(limit: int = 200) -> str:
         with open(tmp.name, "r", encoding="utf-8") as f:
             html_content = f.read()
     return html_content
+
+def get_graph_legend_html() -> str:
+    """Small colored-dot legend matching NODE_STYLES, for display above the graph."""
+    swatches = []
+    for label, style in NODE_STYLES.items():
+        shape_note = "" if style["shape"] == "dot" else f" ({style['shape']})"
+        swatches.append(
+            f'<span style="display:inline-flex;align-items:center;margin-right:1.25rem;">'
+            f'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;'
+            f'background:{style["color"]};margin-right:0.4rem;"></span>'
+            f'{label}{shape_note}</span>'
+        )
+    return (
+        '<div style="font-size:0.85rem;color:#555;margin-bottom:0.5rem;">'
+        + "".join(swatches)
+        + "</div>"
+    )
 
 # --- Streamlit App ---
 def main() -> None:
@@ -658,20 +833,46 @@ def main() -> None:
     
     with tab_graph:
         st.header("🌐 Interactive Knowledge Graph")
-        st.caption("Visualisation of up to 200 relationships (you can adjust the LIMIT in the code).")
 
-        with st.spinner("Building graph..."):
-            try:
-                html = get_pyvis_graph(limit=200)
-                if html and len(html) > 100:
-                    # Use a container with fixed height for better UX
-                    st.iframe(html, height=650)
-                else:
-                    st.warning("No graph data to display.")
-            except Exception as e:
-                st.error(f"Failed to render graph: {e}")
-                import traceback
-                st.code(traceback.format_exc())
+        col_controls, col_graph = st.columns([1, 3])
+
+        with col_controls:
+            st.markdown("**Focus**")
+            product_names = get_product_names()
+            show_all = st.checkbox("Show full graph (no focus product)", value=False)
+            center_node = None
+            if not show_all and product_names:
+                center_node = st.selectbox("Product", product_names, index=0)
+            depth = st.slider(
+                "Hops from focus product",
+                min_value=1, max_value=4, value=2,
+                help="How many relationship hops out from the product to include.",
+                disabled=show_all,
+            )
+            limit = st.slider(
+                "Max relationships",
+                min_value=25, max_value=200, value=100, step=25,
+                help="Caps how many edges are pulled, to keep the graph legible.",
+            )
+            st.caption("Layout is static (no physics) — drag a node to reposition it; it will stay put.")
+
+        with col_graph:
+            st.markdown(get_graph_legend_html(), unsafe_allow_html=True)
+            with st.spinner("Building graph..."):
+                try:
+                    html = get_pyvis_graph(
+                        limit=limit,
+                        center_node=center_node,
+                        depth=depth,
+                    )
+                    if html and len(html) > 100:
+                        st.iframe(html, height=650)
+                    else:
+                        st.warning("No graph data to display for this selection.")
+                except Exception as e:
+                    st.error(f"Failed to render graph: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
