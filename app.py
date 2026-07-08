@@ -166,7 +166,7 @@ def generate_cypher(user_question: str) -> Optional[str]:
         st.error("Gemini API key not configured")
         return None
 
-    model_name = st.secrets.get("GEMINI_MODEL", "gemini-3.5-flash")
+    model_name = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash")
     client = genai.Client(api_key=api_key)
 
     # Fetch actual values from the DB
@@ -225,8 +225,8 @@ def generate_cypher(user_question: str) -> Optional[str]:
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=0.2,
-                max_output_tokens=1024,
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                max_output_tokens=8192,
+                # thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.HIGH)
             )
         )
         print(f"Generated response: {response}")
@@ -247,11 +247,12 @@ def generate_cypher(user_question: str) -> Optional[str]:
         if validate_cypher(query):
             return query
         else:
+            print(f"Generated query invalid: {query}")
             # Fallback if validation fails
             return generate_fallback_query(user_question)
 
     except Exception as e:
-        print(f"Gemini error: {e}")
+        st.warning(f"Gemini error: {e}")
         return generate_fallback_query(user_question)
     
 def generate_fallback_query(question: str) -> str:
