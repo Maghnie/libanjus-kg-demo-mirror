@@ -2,7 +2,9 @@
 
 *A demo showcasing how a Lebanese food company can use Knowledge Graphs + LLMs to power customer and business insights.*
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://libanjus-kg-demo.streamlit.app/){:target="_blank"}
+<a href="https://libanjus-kg-demo.streamlit.app/" target="_blank">
+    <img src="https://static.streamlit.io/badges/streamlit_badge_black_red.svg" alt="Streamlit App" width="200" />
+</a>
 
 ## 🎯 **What It Does**
 
@@ -22,7 +24,9 @@ Ask the assistant:
 - *"Where can I find hummus in Achrafieh open after 6pm?"*
 - *"What products are available at Spinneys Gemmayzeh?"*
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://libanjus-kg-demo.streamlit.app/){:target="_blank"}
+<a href="https://libanjus-kg-demo.streamlit.app/" target="_blank">
+    <img src="https://static.streamlit.io/badges/streamlit_badge_black_red.svg" alt="Streamlit App" width="200" />
+</a>
 
 ## 📊 **Knowledge Graph Schema**
 ```mermaid
