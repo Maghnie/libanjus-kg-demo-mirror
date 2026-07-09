@@ -7,6 +7,7 @@ page_graph = st.Page("pages/graph.py", title="Interactive Graph", icon=":materia
 page_catalog = st.Page("pages/catalog.py", title="Product Catalog (sample)", icon=":material/store:")
 page_stats = st.Page("pages/stats.py", title="Graph Statistics", icon=":material/analytics:")
 page_purpose = st.Page("pages/purpose.py", title="Tool Purpose", icon=":material/info:", visibility="hidden")
+page_license = st.Page("pages/license.py", title="License", icon=":material/license:", visibility="hidden")
 
 # Set up navigation
 pg = st.navigation([main_page, 
@@ -14,14 +15,20 @@ pg = st.navigation([main_page,
                     page_graph,
                     page_catalog,
                     page_stats,
-                    page_purpose],
+                    page_purpose,
+                    page_license],
                     position="sidebar",)
 
 # Run the selected page
 pg.run()
 
-st.bottom.markdown("© 2026 All rights reserved. | " \
-"Built with :material/emoji_food_beverage: by [Marwa Maghnie](https://www.linkedin.com/in/marwa-maghnie/) [(Why?)](purpose)")
+st.bottom.markdown(
+    "<a href='license' target='_self'> © 2026 All rights reserved. </a> | "
+    "Built with :material/emoji_food_beverage: by " \
+    "[Marwa Maghnie](https://www.linkedin.com/in/marwa-maghnie/) | " \
+    "<a href='purpose' target='_self'> (Why?) </a>",
+    unsafe_allow_html=True)
+
 
 
 
