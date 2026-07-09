@@ -38,3 +38,6 @@ graph TD
     Retailer -- LOCATED_AT --> Location
     Retailer -- OPEN_AT --> TimeSlot
 ```
+
+## License
+[MIT](LICENSE) © Marwa Maghnie
