@@ -255,11 +255,10 @@ def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
     """Turn raw Cypher results into a natural-language answer via Gemini."""
     if isinstance(results, str):
         return results  # already an error message from execute_query
-    if not results:
-        return "No results found for that."
 
     api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key:
+        st.error("Gemini API key not configured. Please set GEMINI_API_KEY in .streamlit/secrets.toml")
         return "\n".join(f"- {r}" for r in results)  # crude but functional fallback
 
     def _normalize(value: Any) -> Any:
@@ -286,9 +285,12 @@ def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
     + str(MAX_RECORDS) + " of " + str(len(normalized)) if truncated else ""}:
     {json.dumps(payload, default=str)}
 
-    Write a concise, friendly answer using ONLY the data above.
+    Write a concise, friendly answer using ONLY and ALL OF the data above.
     Use markdown. Do not invent products, retailers, or facts not present in the results.
-    If the results are empty or irrelevant, say so plainly.
+    
+    If the results are empty or irrelevant, say so plainly. Explain that the data is a demo, 
+    suggest the user try a different wording, and optionally mention any similar products 
+    that exist (based on the schema you know).
     """
 
     try:
@@ -533,7 +535,6 @@ def get_graph_legend_html() -> str:
     swatches = []
     for label, style in NODE_STYLES.items():        
         shape = style["shape"]
-        # print(label+" "+shape)
         shape_style = shape_styles.get(shape, shape_styles[shape])
         swatches.append(
             f'<span style="display:inline-flex;align-items:center;margin-right:1.25rem;">'
