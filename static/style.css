@@ -34,11 +34,11 @@ h1, h2, h3 {
     color: var(--primary-color) !important;
 }
 
-/* .stExpander {
+.stExpander {
     border: 1px solid var(--primary-color) !important;
     border-radius: var(--radius-sm) !important;
     background-color: var(--surface-color);
-} */
+}
 
 .stButton > button {
     background-color: var(--primary-color) !important;
