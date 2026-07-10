@@ -59,13 +59,35 @@ ARCHITECTURE_CAPTION = (
 
 # --- Section renderers --------------------------------------------------
 
-def render_bg() -> None:
-    with open("static/bg_image_home.png", "rb") as f:
-        image_object = base64.b64encode(f.read()).decode()
+@st.cache_data
+def _load_bg_image_b64(path: str = "static/bg_image_home.png") -> str:
+    """Read + base64-encode the background image once per process.
+ 
+    Without this, render_bg() would re-read and re-encode the file from
+    disk on every single script rerun (every button click, every widget
+    interaction) even though the image never changes.
+    """
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+ 
+ 
+def render_bg(dim_amount: float = 0.65) -> None:
+    """Render the page background image, dimmed so foreground text stays readable.
+ 
+    `dim_amount` is how much a white veil covers the image: 0.0 = full-strength
+    image, 1.0 = fully white/invisible. We can't just lower CSS `opacity` on
+    the image directly, since that's set on .stApp and would fade the page's
+    actual content (text, cards, buttons) along with it. Instead we layer a
+    translucent white gradient *on top of* the image within the same
+    background-image property, which only affects how strong the image looks
+    and leaves all foreground elements at full opacity.
+    """
+    image_object = _load_bg_image_b64()
     st.markdown(f"""
     <style>
     .stApp {{
-        background-image: url("data:image/png;base64,{image_object}");
+        background-image: linear-gradient(rgba(255, 255, 255, {dim_amount}), rgba(255, 255, 255, {dim_amount})),
+                           url("data:image/png;base64,{image_object}");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -73,6 +95,21 @@ def render_bg() -> None:
     }}
     </style>
     """, unsafe_allow_html=True)
+
+# def render_bg() -> None:
+#     with open("static/bg_image_home.png", "rb") as f:
+#         image_object = base64.b64encode(f.read()).decode()
+#     st.markdown(f"""
+#     <style>
+#     .stApp {{
+#         background-image: url("data:image/png;base64,{image_object}");
+#         background-size: cover;
+#         background-position: center;
+#         background-attachment: fixed;
+#         background-repeat: no-repeat;
+#     }}
+#     </style>
+#     """, unsafe_allow_html=True)
 
 def render_hero() -> None:
     st.markdown(

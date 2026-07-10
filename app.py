@@ -1,7 +1,5 @@
-import time
-
 import streamlit as st
-import base64
+
 
 # Define the pages
 main_page = st.Page("home.py", title="Home", icon=":material/home:", default=True)
