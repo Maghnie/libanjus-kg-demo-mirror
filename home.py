@@ -133,18 +133,6 @@ def render_architecture_section() -> None:
         st.markdown(ARCHITECTURE_CAPTION)
 
 
-def verify_database_connection() -> None:
-    """Fail fast (with a friendly message) if Neo4j isn't reachable."""
-    try:
-        driver = get_neo4j_driver()
-        with driver.session() as session:
-            session.run("MATCH (p:Product) RETURN count(p)").single()
-        print("Connected to Neo4j database.")
-    except Exception as exc:
-        st.warning(f":material/globe_2_question: Connection failed: {exc}. Trying refreshing the page.")
-        st.stop()
-
-
 # --- Entry point ---------------------------------------------------------
 
 def main() -> None:
@@ -171,9 +159,6 @@ def main() -> None:
     render_benefits_grid()
     render_architecture_section()
     
-
-    verify_database_connection()
-
 
 if __name__ == "__main__":
     main()

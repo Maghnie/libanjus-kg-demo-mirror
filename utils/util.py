@@ -79,7 +79,8 @@ def get_neo4j_driver() -> Driver:
             st.session_state.neo4j_driver = driver
         except Exception as e:
             st.error(f"❌ Neo4j connection failed: {str(e)}")
-            st.error("Check your AURA_INSTANCEID, NEO4J_USER, and NEO4J_PASSWORD in .streamlit/secrets.toml")
+            st.warning("🔃 Try refreshing the page.")
+            # st.error("Check your AURA_INSTANCEID, NEO4J_USER, and NEO4J_PASSWORD in .streamlit/secrets.toml")
             st.stop()  # Stop the app if connection fails
 
     return st.session_state.neo4j_driver
