@@ -62,11 +62,13 @@ def get_distinct_values() -> Dict[str, List[str]]:
     with driver.session(database=st.secrets.get("NEO4J_DATABASE", "neo4j")) as session:
         categories = session.run("MATCH (p:Product) RETURN DISTINCT p.category AS cat").value()
         brands = session.run("MATCH (p:Product) RETURN DISTINCT p.brand AS brand").value()
+        # ingredients = session.run("MATCH (p:Product) UNWIND p.ingredients AS ingredient RETURN DISTINCT ingredient").value()
         tags = session.run("MATCH (p:Product) UNWIND p.tags AS tag RETURN DISTINCT tag").value()
         retailer_names = session.run("MATCH (r:Retailer) RETURN DISTINCT r.name AS name").value()
     return {
         "categories": [c for c in categories if c is not None],
         "brands": [b for b in brands if b is not None],
+        # "ingredients": [i for i in ingredients if i is not None],
         "tags": [t for t in tags if t is not None],
         "retailers": [r for r in retailer_names if r is not None],
     }

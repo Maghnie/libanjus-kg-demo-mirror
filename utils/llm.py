@@ -62,6 +62,7 @@ def generate_cypher(user_question: str) -> Optional[str]:
     categories_str = ", ".join(values["categories"])
     brands_str = ", ".join(values["brands"])
     tags_str = ", ".join(values["tags"])
+    # ingredients_str = ", ".join(values["ingredients"])
     retailers_str = ", ".join(values["retailers"])
 
     # System instruction – defines the task and output format
@@ -78,8 +79,11 @@ def generate_cypher(user_question: str) -> Optional[str]:
     - Product.tags can include: {tags_str}
     - Retailer.name can be: {retailers_str}
 
+    - Always search for keywords in all relevant fields 
+    (e.g., product name, description, tags, ingredients).
+
     2. **Syntax**:
-    - Always use these exact category, brand, or tag values as they appear in the database.
+    - Always use these exact category, brand, ingredient, or tag values as they appear in the database.
     - Use single quotes for strings: 'value'
     - Use aliases: p for Product, r for Retailer, l for Location, t for TimeSlot, etc.
     - Always end the query with a `RETURN` clause.
