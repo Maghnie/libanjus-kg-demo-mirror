@@ -46,9 +46,8 @@ pg = st.navigation([main_page,
                     page_license],
                     position="sidebar",)
 
-# Run the selected page
-with st.spinner("Loading application in 10 or fewer seconds...", width="stretch", show_time=True):
-    pg.run()
+# Run the selected pages
+pg.run()
 
 # Add site credits
 with st.container(key="site-credit"):
