@@ -1,13 +1,40 @@
+import time
+
 import streamlit as st
+import base64
 
 # Define the pages
-main_page = st.Page("home.py", title="Home", icon=":material/home:")
+main_page = st.Page("home.py", title="Home", icon=":material/home:", default=True)
 page_chat = st.Page("pages/chat.py", title="Chat with the data", icon=":material/chat:")
 page_graph = st.Page("pages/graph.py", title="Interactive Graph", icon=":material/graph_5:")
 page_catalog = st.Page("pages/catalog.py", title="Product Catalog (sample)", icon=":material/store:")
 page_stats = st.Page("pages/stats.py", title="Graph Statistics", icon=":material/analytics:")
 page_purpose = st.Page("pages/purpose.py", title="Tool Purpose", icon=":material/info:", visibility="hidden")
 page_license = st.Page("pages/license.py", title="License", icon=":material/license:", visibility="hidden")
+
+# with open("static/bg_image_home.png", "rb") as f:
+#     image_object = base64.b64encode(f.read()).decode()
+# st.markdown(f"""
+# <style>
+# .stApp {{
+#     background-image: url("data:image/png;base64,{image_object}");
+#     background-size: cover;
+#     background-position: center;
+#     background-attachment: fixed;
+#     background-repeat: no-repeat;
+# }}
+# </style>
+# """, unsafe_allow_html=True)
+st.markdown(f"""
+<style>
+.stSpinner {{
+    background-color: #F5F0E8;  
+    padding: 2rem;
+    border-radius: 12px;
+    text-align: center;
+}}
+</style>
+""", unsafe_allow_html=True)
 
 # Set up navigation
 pg = st.navigation([main_page, 
@@ -20,8 +47,8 @@ pg = st.navigation([main_page,
                     position="sidebar",)
 
 # Run the selected page
-pg.run()
-
+with st.spinner("Loading application in 10 or fewer seconds...", width="stretch", show_time=True):
+    pg.run()
 
 # Add site credits
 with st.container(key="site-credit"):
