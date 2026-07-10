@@ -96,20 +96,6 @@ def render_bg(dim_amount: float = 0.65) -> None:
     </style>
     """, unsafe_allow_html=True)
 
-# def render_bg() -> None:
-#     with open("static/bg_image_home.png", "rb") as f:
-#         image_object = base64.b64encode(f.read()).decode()
-#     st.markdown(f"""
-#     <style>
-#     .stApp {{
-#         background-image: url("data:image/png;base64,{image_object}");
-#         background-size: cover;
-#         background-position: center;
-#         background-attachment: fixed;
-#         background-repeat: no-repeat;
-#     }}
-#     </style>
-#     """, unsafe_allow_html=True)
 
 def render_hero() -> None:
     st.markdown(
