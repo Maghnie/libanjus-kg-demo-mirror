@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import os
+from turtle import color
 
 import streamlit as st
 
@@ -56,6 +58,29 @@ ARCHITECTURE_CAPTION = (
 
 
 # --- Section renderers --------------------------------------------------
+
+def render_bg() -> None:
+    with open("static/bg_image_home.png", "rb") as f:
+        image_object = base64.b64encode(f.read()).decode()
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/png;base64,{image_object}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+    }},
+    .stMarkdown {{
+        background-color: rgba(251, 248, 241, 0.5);
+        backdrop-filter: blur(6px);
+        border-radius: 12px;
+        padding: 1.1rem 1.4rem;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 1px 6px rgba(74, 63, 53, 0.08);
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
 def render_hero() -> None:
     st.markdown(
@@ -137,19 +162,20 @@ def main() -> None:
     st.set_page_config(
         page_title=f"{company_config['display_name']} KG Assistant",
         page_icon=company_config.get("icon", ":material/home:"),
-        layout="wide",
+        layout="centered",
         initial_sidebar_state="expanded",
     )
 
     load_material_symbols_font()
     apply_theme(company_config.get("color", "#2E8B57"))
     load_css()
-
+    
     render_hero()
     render_use_cases()
     render_cta()
     render_benefits_grid()
     render_architecture_section()
+    render_bg()
 
     verify_database_connection()
 
