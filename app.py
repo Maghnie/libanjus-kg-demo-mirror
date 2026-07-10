@@ -23,7 +23,7 @@ pg = st.navigation([main_page,
 pg.run()
 
 
-
+# Add site credits
 with st.container(key="site-credit"):
     st.caption(
         "Built with :material/emoji_food_beverage: by "
@@ -33,6 +33,7 @@ with st.container(key="site-credit"):
         unsafe_allow_html=True
     )
 
+# Style site credits
 st.html(
     """
     <style>

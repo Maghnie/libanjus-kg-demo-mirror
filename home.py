@@ -45,14 +45,15 @@ BENEFITS = [
 
 ARCHITECTURE_CAPTION = (
     ":material/counter_1: Potential shoppers ask their questions "
-    "using everyday language within the app (Streamlit). "
-    "In the background, a large language model (Google Gemini in this case) "
+    "using everyday language within the app (Streamlit)."
+    ":material/counter_2: In the background, a large language model (Google Gemini in this case) "
     "converts the free-text question into a structured query (Cypher). "
-    "The query is then executed against a knowledge graph hosted in the cloud (Neo4j AuraDB). "
+    ":material/counter_3: The query is then executed against a knowledge graph hosted in the cloud (Neo4j AuraDB). "
     "The knowledge graph contains product information as linked entities, allowing "
     "questions that need rich context to be answered effectively."
-    "The response to the query is returned in the form of data points, which is then "
-    "converted to natural language with the help of the LLM and displayed to the "
+    ":material/counter_4: The response to the query is returned in the form of data points. "
+    ":material/counter_5: The raw response is then "
+    "converted to natural language with the help of the LLM and :material/counter_6: displayed to the "
     "user."
 )
 
@@ -72,7 +73,7 @@ def render_bg() -> None:
         background-repeat: no-repeat;
     }},
     .stMarkdown {{
-        background-color: rgba(251, 248, 241, 0.5);
+        background-color: rgba(251, 248, 241, 0.92);
         backdrop-filter: blur(6px);
         border-radius: 12px;
         padding: 1.1rem 1.4rem;
@@ -137,8 +138,8 @@ def render_architecture_section() -> None:
         st.image(
             "static/kg_llm_app_architecture_icons.svg",
             width="stretch",
-            caption=ARCHITECTURE_CAPTION,
         )
+        st.markdown(ARCHITECTURE_CAPTION)
 
 
 def verify_database_connection() -> None:
