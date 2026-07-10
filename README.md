@@ -9,8 +9,7 @@
 ## 🎯 **What It Does**
 
 ### For Customers:
-- **Dietary Questions**: *"As a celiac, which products can I get?"*
-- **Location-Based**: *"Where can I get organic Labneh near Al-Hamra at 5pm on Sunday?"*
+- **Dietary Questions**: *"As a celiac, what sweet products can I get?"*
 - **Product Availability**: *"Is there lactose-free fat-free milk?"*
 - **Store Hours**: *"Which stores are open on Sunday afternoon?"*
 

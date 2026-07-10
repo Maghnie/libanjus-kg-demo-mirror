@@ -290,7 +290,7 @@ def format_answer(results: List[Dict[str, Any]] | str, question: str) -> str:
     
     If the results are empty or irrelevant, say so plainly. Explain that the data is a demo, 
     suggest the user try a different wording, and optionally mention any similar products 
-    that exist (based on the schema you know).
+    that exist (based on the schema you know). 
     """
 
     try:

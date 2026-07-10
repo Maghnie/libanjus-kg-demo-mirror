@@ -71,14 +71,6 @@ def render_bg() -> None:
         background-position: center;
         background-attachment: fixed;
         background-repeat: no-repeat;
-    }},
-    .stMarkdown {{
-        background-color: rgba(251, 248, 241, 0.92);
-        backdrop-filter: blur(6px);
-        border-radius: 12px;
-        padding: 1.1rem 1.4rem;
-        margin-bottom: 0.75rem;
-        box-shadow: 0 1px 6px rgba(74, 63, 53, 0.08);
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -158,6 +150,9 @@ def verify_database_connection() -> None:
 
 def main() -> None:
     """Main application entry point."""
+
+    render_bg()
+
     company_config = load_company_config(os.getenv("COMPANY", "libanjus"))
 
     st.set_page_config(
@@ -176,7 +171,7 @@ def main() -> None:
     render_cta()
     render_benefits_grid()
     render_architecture_section()
-    render_bg()
+    
 
     verify_database_connection()
 

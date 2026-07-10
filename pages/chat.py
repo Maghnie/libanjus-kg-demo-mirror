@@ -27,9 +27,8 @@ with col_sample_qs:
     st.markdown("**Try These:**")
     example_questions = [
         "As a celiac, what sweet products can I get?",
-        "Where can I get organic Labneh near Al-Hamra?",
         "Which retailers are open at 10 am on a Sunday and have fat-free milk?",
-        "Which retailers cover the most products in Beirut?"
+        "Where can I get organic Labneh near Al-Hamra?"
     ]
     for q in example_questions:
         if st.button(q, key=f"btn_{hash(q) % 10000}", width='stretch'):
