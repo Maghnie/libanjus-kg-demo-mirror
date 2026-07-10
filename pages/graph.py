@@ -1,6 +1,7 @@
 import streamlit as st
 
-from utils.util import get_product_names, get_graph_legend_html, get_pyvis_graph
+from utils.graph import get_graph_legend_html, get_pyvis_graph
+from utils.db import get_product_names
 
 st.set_page_config(page_title="KG Assistant - Interactive Knowledge Graph", 
                    page_icon=":material/nutrition:",

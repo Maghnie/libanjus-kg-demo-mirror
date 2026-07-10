@@ -1,7 +1,8 @@
 from typing import List, Dict
 import streamlit as st
 
-from utils.util import generate_cypher, execute_query, format_answer
+from utils.llm import generate_cypher, format_answer
+from utils.db import execute_query
 
 
 st.set_page_config(page_title="KG Assistant - Chat with the Knowledge Graph", 

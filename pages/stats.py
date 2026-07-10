@@ -1,6 +1,6 @@
 import streamlit as st
 
-from utils.util import get_graph_statistics
+from utils.stats import get_graph_statistics
 
 
 st.set_page_config(page_title="KG Assistant - Statistics", 

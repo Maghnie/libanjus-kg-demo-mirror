@@ -12,30 +12,6 @@ page_stats = st.Page("pages/stats.py", title="Graph Statistics", icon=":material
 page_purpose = st.Page("pages/purpose.py", title="Tool Purpose", icon=":material/info:", visibility="hidden")
 page_license = st.Page("pages/license.py", title="License", icon=":material/license:", visibility="hidden")
 
-# with open("static/bg_image_home.png", "rb") as f:
-#     image_object = base64.b64encode(f.read()).decode()
-# st.markdown(f"""
-# <style>
-# .stApp {{
-#     background-image: url("data:image/png;base64,{image_object}");
-#     background-size: cover;
-#     background-position: center;
-#     background-attachment: fixed;
-#     background-repeat: no-repeat;
-# }}
-# </style>
-# """, unsafe_allow_html=True)
-st.markdown(f"""
-<style>
-.stSpinner {{
-    background-color: #F5F0E8;  
-    padding: 2rem;
-    border-radius: 12px;
-    text-align: center;
-}}
-</style>
-""", unsafe_allow_html=True)
-
 # Set up navigation
 pg = st.navigation([main_page, 
                     page_chat, 
@@ -71,7 +47,7 @@ st.html(
         max-width: 310px;
         text-align: right;
         pointer-events: none;
-        background-color: rgba(251, 248, 241, 0.85);
+        background-color: rgba(251, 248, 241, 0.7);
         backdrop-filter: blur(4px);
         border-radius: 8px;
         padding: 1rem 0.7rem;
@@ -84,14 +60,14 @@ st.html(
         font-size: 0.92rem;
         line-height: 1.5;
         margin: 0;
-        color: rgba(74, 63, 53, 0.55);
+        color: rgba(74, 63, 53, 0.85);
     }
     .st-key-site-credit a {
-        color: rgba(74, 63, 53, 0.65);
+        color: rgba(74, 63, 53, 0.85);
         text-decoration: none;
     }
     .st-key-site-credit a:hover {
-        color: rgba(74, 63, 53, 0.9);
+        color: rgba(74, 63, 53, 0.95);
         text-decoration: underline;
     }
     </style>

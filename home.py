@@ -7,7 +7,7 @@ import os
 
 import streamlit as st
 
-from utils.util import load_company_config, get_neo4j_driver
+from utils.config import load_company_config
 from utils.styles import apply_theme, load_css, load_material_symbols_font
 
 # --- Page content -----------------------------------------------------------
@@ -158,7 +158,7 @@ def main() -> None:
     render_cta()
     render_benefits_grid()
     render_architecture_section()
-    
+
 
 if __name__ == "__main__":
     main()

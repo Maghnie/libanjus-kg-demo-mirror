@@ -1,6 +1,6 @@
 import streamlit as st
 
-from utils.util import get_product_catalog
+from utils.catalog import get_product_catalog
 
 
 st.set_page_config(page_title="KG Assistant - Product Catalog", 
