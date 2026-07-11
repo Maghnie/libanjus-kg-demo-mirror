@@ -74,19 +74,26 @@ def _load_bg_image_b64(path: str = "static/bg_image_home.png") -> str:
 def render_bg(dim_amount: float = 0.65) -> None:
     """Render the page background image, dimmed so foreground text stays readable.
  
-    `dim_amount` is how much a white veil covers the image: 0.0 = full-strength
-    image, 1.0 = fully white/invisible. We can't just lower CSS `opacity` on
+    `dim_amount` is how much a white/black veil covers the image: 0.0 = full-strength
+    image, 1.0 = fully white/black/invisible. We can't just lower CSS `opacity` on
     the image directly, since that's set on .stApp and would fade the page's
     actual content (text, cards, buttons) along with it. Instead we layer a
-    translucent white gradient *on top of* the image within the same
+    translucent white/black gradient *on top of* the image within the same
     background-image property, which only affects how strong the image looks
     and leaves all foreground elements at full opacity.
     """
-    image_object = _load_bg_image_b64()
+    theme = st.context.theme.type
+    path = "static/bg_image_home.png"
+    brightness = 255
+    if theme == 'dark':
+        path = "static/bg_image_home_dark.png"
+        brightness = 0
+    image_object = _load_bg_image_b64(path)
     st.markdown(f"""
     <style>
     .stApp {{
-        background-image: linear-gradient(rgba(255, 255, 255, {dim_amount}), rgba(255, 255, 255, {dim_amount})),
+        background-image: linear-gradient(rgba({brightness}, {brightness}, {brightness}, {dim_amount}), 
+                                            rgba({brightness}, {brightness}, {brightness}, {dim_amount})),
                            url("data:image/png;base64,{image_object}");
         background-size: cover;
         background-position: center;
@@ -181,6 +188,8 @@ def main() -> None:
     render_cta()
     render_benefits_grid()
     render_architecture_section()
+
+    st.status(f"It's this {st.context.theme.type}")
 
 
 if __name__ == "__main__":
