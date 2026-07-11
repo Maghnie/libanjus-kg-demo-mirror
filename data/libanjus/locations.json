@@ -1,0 +1,16 @@
+[
+  {
+    "address": "Blvd. Chamoun, Baabda, Beirut, Lebanon",
+    "city": "Beirut",
+    "neighborhood": "Baabda",
+    "lat": 33.8333,
+    "lon": 35.5333
+  },
+  {
+  "address": "Tawfeer Shopping Center, Al-Hamra Street, Beirut, Lebanon",
+  "city": "Beirut",
+  "neighborhood": "Al-Hamra",
+  "lat": 33.8989,
+  "lon": 35.4823
+}
+]

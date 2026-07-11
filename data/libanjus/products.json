@@ -1,0 +1,154 @@
+[
+  {
+    "name": "Maccaw Orange Juice",
+    "description": "Refreshing 100% pure pressed orange juice, rich in vitamin C.",
+    "ingredients": ["Orange Juice", "Vitamin C"],
+    "tags": ["gluten-free", "vegan", "no-sugar-added"],
+    "category": "Beverages",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Maccaw Apple Nectar",
+    "description": "Delicious apple nectar made with 100% pure pressed fruit, a great source of vitamin C.",
+    "ingredients": ["Apple Juice", "Sugar", "Vitamin C"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Maccaw Pineapple Juice",
+    "description": "Tropical pineapple juice made with 100% pure pressed fruit.",
+    "ingredients": ["Pineapple Juice", "Vitamin C"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Maccaw Exotic Fruit Nectar",
+    "description": "A tropical blend of exotic fruits in a 100% pure pressed nectar.",
+    "ingredients": ["Exotic Fruit Juice", "Sugar", "Vitamin C"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Maccaw Blood Orange & Mandarin",
+    "description": "A vibrant blend of blood orange and mandarin, made with 100% pure pressed fruit.",
+    "ingredients": ["Blood Orange Juice", "Mandarin Juice", "Vitamin C"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Maccaw Orange Carrot Drink",
+    "description": "A unique blend of orange and carrot juice with a blast of real pulp.",
+    "ingredients": ["Orange Juice", "Carrot Juice", "Pulp", "Vitamin C"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Maccaw Banana Strawberry Shake",
+    "description": "A creamy shake blending banana and strawberry flavors.",
+    "ingredients": ["Banana Puree", "Strawberry Puree", "Milk", "Sugar", "Natural Flavors"],
+    "tags": ["gluten-free"],
+    "category": "Dairy & Shakes",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Maccaw Tomato Juice",
+    "description": "Savory tomato juice made from ripe tomatoes.",
+    "ingredients": ["Tomato Juice", "Salt", "Vitamin C"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Maccaw"
+  },
+  {
+    "name": "Danway Iceberg Chocolate Milkshake",
+    "description": "Creamy chocolate milkshake, fortified with calcium and protein.",
+    "ingredients": ["Milk", "Chocolate", "Sugar", "Calcium", "Protein"],
+    "tags": ["gluten-free", "calcium-rich", "high-protein"],
+    "category": "Ice Cream & Shakes",
+    "brand": "Danway Iceberg"
+  },
+  {
+    "name": "Danway Iceberg Strawberry Milkshake",
+    "description": "Creamy strawberry milkshake, fortified with calcium and protein.",
+    "ingredients": ["Milk", "Strawberry Puree", "Sugar", "Calcium", "Protein"],
+    "tags": ["gluten-free", "calcium-rich", "high-protein"],
+    "category": "Ice Cream & Shakes",
+    "brand": "Danway Iceberg"
+  },
+  {
+    "name": "UNO UHT Zero Fat Milk",
+    "description": "Long-life zero-fat milk, produced in a state-of-the-art dairy pilot plant.",
+    "ingredients": ["Skim Milk", "Vitamin D"],
+    "tags": ["gluten-free", "fat-free", "calcium-rich"],
+    "category": "Dairy",
+    "brand": "UNO"
+  },
+  {
+    "name": "La Bergère Labneh",
+    "description": "Traditional creamy strained yogurt, a staple of Lebanese breakfast.",
+    "ingredients": ["Milk", "Salt", "Live Cultures"],
+    "tags": ["gluten-free", "vegetarian", "high-protein"],
+    "category": "Dairy",
+    "brand": "La Bergère"
+  },
+  {
+    "name": "La Bergère Organic Labneh",
+    "description": "Creamy organic strained yogurt, made from certified organic milk.",
+    "ingredients": ["Organic Milk", "Salt", "Live Cultures"],
+    "tags": ["gluten-free", "vegetarian", "high-protein", "organic"],
+    "category": "Dairy",
+    "brand": "La Bergère"
+  },
+  {
+    "name": "La Bergère Yogurt",
+    "description": "Fresh and creamy yogurt, perfect for a healthy snack.",
+    "ingredients": ["Milk", "Live Cultures"],
+    "tags": ["gluten-free", "vegetarian", "calcium-rich"],
+    "category": "Dairy",
+    "brand": "La Bergère"
+  },
+  {
+    "name": "La Bergère Ayran",
+    "description": "Traditional Lebanese yogurt drink, refreshing and savory.",
+    "ingredients": ["Yogurt", "Water", "Salt"],
+    "tags": ["gluten-free", "vegetarian"],
+    "category": "Dairy",
+    "brand": "La Bergère"
+  },
+  {
+    "name": "La Bergère Crème Dessert",
+    "description": "Smooth and creamy dessert, available in various flavors.",
+    "ingredients": ["Milk", "Sugar", "Stabilizers", "Natural Flavors"],
+    "tags": ["gluten-free", "vegetarian"],
+    "category": "Dairy",
+    "brand": "La Bergère"
+  },
+  {
+    "name": "La Bergère Halloumi Cheese",
+    "description": "Traditional semi-hard, brined cheese with a high melting point, perfect for grilling.",
+    "ingredients": ["Sheep Milk", "Goat Milk", "Salt", "Rennet"],
+    "tags": ["gluten-free", "vegetarian", "high-protein"],
+    "category": "Dairy",
+    "brand": "La Bergère"
+  },
+  {
+    "name": "Blue Beast Energy Drink",
+    "description": "An energy drink designed to boost your energy and focus.",
+    "ingredients": ["Carbonated Water", "Caffeine", "Taurine", "B-Vitamins", "Sugar"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Blue Beast"
+  },
+  {
+    "name": "Top Juice Pyramid",
+    "description": "Iconic pyramid-shaped juice box, a beloved Lebanese classic.",
+    "ingredients": ["Fruit Juice", "Sugar", "Vitamin C"],
+    "tags": ["gluten-free", "vegan"],
+    "category": "Beverages",
+    "brand": "Top Juice"
+  }
+]
