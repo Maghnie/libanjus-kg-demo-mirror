@@ -213,7 +213,7 @@ def load_data(company_name: str = "libanjus") -> bool:
         return True
 
     except Exception as e:
-        print(f"❌ Error loading {company_name} data: {str(e)}", file=sys.stderr)
+        print(f"❌ Error loading {company_name} data", file=sys.stderr)
         return False
 
 def main() -> None:

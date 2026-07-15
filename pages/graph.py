@@ -53,6 +53,6 @@ with col_graph:
             else:
                 st.warning("No graph data to display for this selection.")
         except Exception as e:
-            st.error(f"Failed to render graph: {e}")
+            st.error(f"Failed to render graph")
             import traceback
             st.code(traceback.format_exc())

@@ -189,8 +189,6 @@ def main() -> None:
     render_benefits_grid()
     render_architecture_section()
 
-    st.status(f"It's this {st.context.theme.type}")
-
 
 if __name__ == "__main__":
     main()
