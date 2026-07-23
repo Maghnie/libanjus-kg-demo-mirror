@@ -1,7 +1,8 @@
-"""LibanJus Knowledge Graph Assistant - Streamlit chat interface."""
+"""Knowledge Graph Assistant - Streamlit chat interface."""
 
 from __future__ import annotations
 
+from typing import Any, Dict
 import base64
 import os
 
@@ -60,7 +61,7 @@ ARCHITECTURE_CAPTION = (
 # --- Section renderers --------------------------------------------------
 
 @st.cache_data
-def _load_bg_image_b64(path: str = "static/bg_image_home.png") -> str:
+def _load_bg_image_b64(path: str) -> str:
     """Read + base64-encode the background image once per process.
  
     Without this, render_bg() would re-read and re-encode the file from
@@ -71,7 +72,7 @@ def _load_bg_image_b64(path: str = "static/bg_image_home.png") -> str:
         return base64.b64encode(f.read()).decode()
  
  
-def render_bg(dim_amount: float = 0.65) -> None:
+def render_bg(config: Dict[str, Any], dim_amount: float = 0.65) -> None:
     """Render the page background image, dimmed so foreground text stays readable.
  
     `dim_amount` is how much a white/black veil covers the image: 0.0 = full-strength
@@ -83,10 +84,10 @@ def render_bg(dim_amount: float = 0.65) -> None:
     and leaves all foreground elements at full opacity.
     """
     theme = st.context.theme.type
-    path = "static/bg_image_home.png"
+    path = str(config.get("background_image_light"))
     brightness = 255
     if theme == 'dark':
-        path = "static/bg_image_home_dark.png"
+        path = str(config.get("background_image_dark"))
         brightness = 0
     image_object = _load_bg_image_b64(path)
     st.markdown(f"""
@@ -108,7 +109,7 @@ def render_hero() -> None:
     st.markdown(
         """
         <div class="hero-banner">
-            <h1>🍊 LibanJus AI Assistant</h1>
+            <h1>🧞‍♂️ AI Assistant for product discovery</h1>
             <p class="hero-tagline"><strong>AI-Powered Business Insights for Lebanese Retail</strong></p>
             <p class="hero-subtext">
                 Answer complex customer questions in plain English using your existing data.
@@ -168,9 +169,9 @@ def render_architecture_section() -> None:
 def main() -> None:
     """Main application entry point."""
 
-    render_bg()
-
     company_config = load_company_config(os.getenv("COMPANY", "libanjus"))
+
+    render_bg(config=company_config)
 
     st.set_page_config(
         page_title=f"{company_config['display_name']} KG Assistant",
