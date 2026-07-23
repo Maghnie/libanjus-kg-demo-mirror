@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict
 import base64
 import os
+from pathlib import Path
 
 import streamlit as st
 
@@ -61,18 +62,19 @@ ARCHITECTURE_CAPTION = (
 # --- Section renderers --------------------------------------------------
 
 @st.cache_data
-def _load_bg_image_b64(path: str) -> str:
+def _load_bg_image_b64(path: Path) -> str:
     """Read + base64-encode the background image once per process.
  
     Without this, render_bg() would re-read and re-encode the file from
     disk on every single script rerun (every button click, every widget
     interaction) even though the image never changes.
     """
+    print("Path is ",path)
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
  
  
-def render_bg(config: Dict[str, Any], dim_amount: float = 0.65) -> None:
+def render_bg(path_bg_light: str, path_bg_dark:str, dim_amount: float = 0.65) -> None:
     """Render the page background image, dimmed so foreground text stays readable.
  
     `dim_amount` is how much a white/black veil covers the image: 0.0 = full-strength
@@ -84,10 +86,10 @@ def render_bg(config: Dict[str, Any], dim_amount: float = 0.65) -> None:
     and leaves all foreground elements at full opacity.
     """
     theme = st.context.theme.type
-    path = str(config.get("background_image_light"))
+    path = Path(path_bg_light)
     brightness = 255
     if theme == 'dark':
-        path = str(config.get("background_image_dark"))
+        path = Path(path_bg_dark)
         brightness = 0
     image_object = _load_bg_image_b64(path)
     st.markdown(f"""
@@ -105,11 +107,11 @@ def render_bg(config: Dict[str, Any], dim_amount: float = 0.65) -> None:
     """, unsafe_allow_html=True)
 
 
-def render_hero() -> None:
+def render_hero(company_name: str) -> None:
     st.markdown(
-        """
+        f"""
         <div class="hero-banner">
-            <h1>🧞‍♂️ AI Assistant for product discovery</h1>
+            <h1> {company_name} AI Shopping Assistant</h1>
             <p class="hero-tagline"><strong>AI-Powered Business Insights for Lebanese Retail</strong></p>
             <p class="hero-subtext">
                 Answer complex customer questions in plain English using your existing data.
@@ -171,7 +173,8 @@ def main() -> None:
 
     company_config = load_company_config(os.getenv("COMPANY", "libanjus"))
 
-    render_bg(config=company_config)
+    render_bg(path_bg_light=company_config.get("background_image_light"),
+              path_bg_dark=company_config.get("background_image_dark"))
 
     st.set_page_config(
         page_title=f"{company_config['display_name']} KG Assistant",
@@ -184,7 +187,7 @@ def main() -> None:
     apply_theme(company_config.get("color", "#2E8B57"))
     load_css()
     
-    render_hero()
+    render_hero(company_name=company_config.get("display_name", ""))
     render_use_cases()
     render_cta()
     render_benefits_grid()
