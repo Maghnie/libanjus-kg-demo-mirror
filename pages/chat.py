@@ -49,7 +49,7 @@ with col_sample_qs:
             st.rerun()
     
     st.divider()
-    if st.button("🗑️ Clear Chat", width='stretch'):
+    if st.button(":material/delete: Clear Chat", width='stretch'):
         st.session_state.messages = []
         st.rerun()
 
@@ -69,7 +69,7 @@ with col_chat_box:
         with chat_container.chat_message("user"):
             st.markdown(prompt)
 
-        with st.spinner("🤔 Thinking..."):
+        with st.spinner(":material/psychology: Thinking..."):
             cypher_query = generate_cypher(prompt)
             if not cypher_query:
                 st.error("Could not generate a query. Please rephrase.")
