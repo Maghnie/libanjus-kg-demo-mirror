@@ -7,7 +7,7 @@ from pathlib import Path
 # -------------------------------------------------------------------
 st.set_page_config(
     page_title="AI Shopping Assistant",
-    page_icon=":material/shopping_cart:",
+    page_icon="static/app_icon.bmp",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
