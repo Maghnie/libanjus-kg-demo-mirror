@@ -34,6 +34,15 @@ h1, h2, h3 {
     color: var(--primary-color) !important;
 }
 
+.stMainBlockContainer {    
+    background-color: var(--surface-color / 50%);
+}
+
+.stHeading {    
+    background-color: var(--surface-color);
+    opacity: 0.8;
+}
+
 .stExpander {
     border: 1px solid var(--primary-color) !important;
     border-radius: var(--radius-sm) !important;

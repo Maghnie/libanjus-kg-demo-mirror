@@ -1,4 +1,4 @@
-"""Knowledge Graph Assistant - Streamlit chat interface."""
+"""About page – explains the tool and architecture."""
 
 from __future__ import annotations
 
@@ -11,6 +11,15 @@ import streamlit as st
 
 from utils.config import load_company_config
 from utils.styles import apply_theme, load_css, load_material_symbols_font
+
+
+# Use the already-loaded config from app.py
+config = st.session_state.get("company_config")
+if not config:
+    st.error("Company config not loaded. Please return to the main page.")
+    st.stop()
+
+display_name = config["display_name"]
 
 # --- Page content -----------------------------------------------------------
 # Kept as plain data so the copy can be edited without touching any styling
@@ -61,58 +70,13 @@ ARCHITECTURE_CAPTION = (
 
 # --- Section renderers --------------------------------------------------
 
-@st.cache_data
-def _load_bg_image_b64(path: Path) -> str:
-    """Read + base64-encode the background image once per process.
- 
-    Without this, render_bg() would re-read and re-encode the file from
-    disk on every single script rerun (every button click, every widget
-    interaction) even though the image never changes.
-    """
-    print("Path is ",path)
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
- 
- 
-def render_bg(path_bg_light: str, path_bg_dark:str, dim_amount: float = 0.65) -> None:
-    """Render the page background image, dimmed so foreground text stays readable.
- 
-    `dim_amount` is how much a white/black veil covers the image: 0.0 = full-strength
-    image, 1.0 = fully white/black/invisible. We can't just lower CSS `opacity` on
-    the image directly, since that's set on .stApp and would fade the page's
-    actual content (text, cards, buttons) along with it. Instead we layer a
-    translucent white/black gradient *on top of* the image within the same
-    background-image property, which only affects how strong the image looks
-    and leaves all foreground elements at full opacity.
-    """
-    theme = st.context.theme.type
-    path = Path(path_bg_light)
-    brightness = 255
-    if theme == 'dark':
-        path = Path(path_bg_dark)
-        brightness = 0
-    image_object = _load_bg_image_b64(path)
-    st.markdown(f"""
-    <style>
-    .stApp {{
-        background-image: linear-gradient(rgba({brightness}, {brightness}, {brightness}, {dim_amount}), 
-                                            rgba({brightness}, {brightness}, {brightness}, {dim_amount})),
-                           url("data:image/png;base64,{image_object}");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        background-repeat: no-repeat;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
-
-def render_hero(company_name: str) -> None:
+def render_hero() -> None:
     st.markdown(
         f"""
         <div class="hero-banner">
-            <h1> {company_name} AI Shopping Assistant</h1>
-            <p class="hero-tagline"><strong>AI-Powered Business Insights for Lebanese Retail</strong></p>
+            <h1> About the AI Product Discovery Assistant</h1>
+            <p class="hero-tagline"><strong>
+            Why this matters and how it works</strong></p>
             <p class="hero-subtext">
                 Answer complex customer questions in plain English using your existing data.
             </p>
@@ -120,7 +84,6 @@ def render_hero(company_name: str) -> None:
         """,
         unsafe_allow_html=True,
     )
-
 
 def render_use_cases() -> None:
     with st.expander(
@@ -169,25 +132,20 @@ def render_architecture_section() -> None:
 # --- Entry point ---------------------------------------------------------
 
 def main() -> None:
-    """Main application entry point."""
+    # company = st.session_state.get("company", os.getenv("COMPANY", "libanjus"))
 
-    company_config = load_company_config(os.getenv("COMPANY", "libanjus"))
-
-    render_bg(path_bg_light=company_config.get("background_image_light"),
-              path_bg_dark=company_config.get("background_image_dark"))
+    # company_config = load_company_config(company)
 
     st.set_page_config(
-        page_title=f"{company_config['display_name']} KG Assistant",
-        page_icon=company_config.get("icon", ":material/home:"),
+        # page_title=f"{company_config['display_name']} KG Assistant",
+        page_icon=":material/info:",
         layout="centered",
         initial_sidebar_state="expanded",
     )
 
-    load_material_symbols_font()
-    apply_theme(company_config.get("color", "#2E8B57"))
-    load_css()
+
     
-    render_hero(company_name=company_config.get("display_name", ""))
+    render_hero()
     render_use_cases()
     render_cta()
     render_benefits_grid()
