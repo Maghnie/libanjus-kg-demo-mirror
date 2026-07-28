@@ -1,5 +1,4 @@
 from typing import List, Dict, Any
-import streamlit as st
 
 from utils.db import execute_query
 
@@ -13,7 +12,9 @@ def get_product_catalog() -> Dict[str, List[Dict[str, Any]]]:
     """
     results = execute_query(query)
     if isinstance(results, str):
-        st.error(f"❌ Catalog query failed: {results}")
+        # --- commented out because deep error handling is too much for a demo ---
+        # st.error(f"❌ Catalog query failed: {results}")
+        # ---
         return {}
     catalog: Dict[str, List[Dict[str, Any]]] = {}
     for record in results:

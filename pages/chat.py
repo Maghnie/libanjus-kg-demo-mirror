@@ -3,11 +3,8 @@ import streamlit as st
 
 from utils.llm import generate_cypher, format_answer
 from utils.db import execute_query
+from utils.error_handling import render_503_error
 
-
-# st.set_page_config(page_title="KG Assistant - Chat with the Knowledge Graph", 
-#                    page_icon=":material/nutrition:",
-#                    layout="wide")
 
 # Load the global config
 config = st.session_state.get("company_config")
@@ -69,6 +66,7 @@ with col_chat_box:
         with chat_container.chat_message("user"):
             st.markdown(prompt)
 
+        prompt_successful = True
         with st.spinner(":material/psychology: Thinking..."):
             cypher_query = generate_cypher(prompt)
             if not cypher_query:
@@ -80,12 +78,24 @@ with col_chat_box:
                 st.rerun()
 
             results = execute_query(cypher_query)
-            print(results)
-            answer = format_answer(results, prompt)
 
-        with chat_container.chat_message("assistant"):
-            with st.expander("🔍 See Generated Cypher Query"):
-                st.code(cypher_query, language="cypher")
-            st.markdown(answer)
+            if len(results) == 0:   
+                prompt_successful = False
+            else:          
+                answer = format_answer(results, prompt)
 
-        st.session_state.messages.append({"role": "assistant", "content": answer})
+                with chat_container.chat_message("assistant"):
+                    with st.expander("🔍 See Generated Cypher Query"):
+                        st.code(cypher_query, language="cypher")
+                    st.markdown(answer)
+        
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+
+        if not prompt_successful:
+            render_503_error()
+            st.stop()
+
+
+            
+
+        

@@ -78,7 +78,7 @@ def render_hero() -> None:
     )
 
 def render_demo() -> None:
-    st.video('static/demo.mp4', start_time='7s', end_time='38s', loop=True, autoplay=True)
+    st.video('static/demo.mp4', start_time='7s', loop=True, autoplay=True)
 
 def render_use_cases() -> None:
     with st.expander(

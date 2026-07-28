@@ -2,6 +2,7 @@ import streamlit as st
 
 from utils.graph import get_graph_legend_html, get_pyvis_graph
 from utils.db import get_product_names
+from utils.error_handling import render_503_error
 
 
 # Load the global config
@@ -29,7 +30,7 @@ col_controls, col_graph = st.columns([1, 3])
 with col_controls:
     st.markdown("**Focus**")
     product_names = get_product_names()
-    show_all = st.checkbox("Show full graph (no focus product)", value=False)
+    show_all = st.checkbox("Show full graph", value=False)
     center_node = None
     if not show_all and product_names:
         center_node = st.selectbox("Product", product_names, index=0)
@@ -48,6 +49,7 @@ with col_controls:
 
 with col_graph:
     st.markdown(get_graph_legend_html(), unsafe_allow_html=True)
+    connection_successful = True
     with st.spinner("Building graph..."):
         try:
             html = get_pyvis_graph(
@@ -60,6 +62,13 @@ with col_graph:
             else:
                 st.warning("No graph data to display for this selection.")
         except Exception as e:
-            st.error(f"Failed to render graph")
-            import traceback
-            st.code(traceback.format_exc())
+            # --- commented out because deep error handling is too much for a demo ---
+            # st.error(f"Failed to render graph")
+            # import traceback
+            # st.code(traceback.format_exc())
+            # ---
+            connection_successful = False
+
+    if not connection_successful:
+        render_503_error()
+        st.stop()

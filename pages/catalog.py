@@ -1,6 +1,7 @@
 import streamlit as st
 
 from utils.catalog import get_product_catalog
+from utils.error_handling import render_503_error
 
 
 # Load the global config
@@ -27,7 +28,8 @@ complete or up-to-date information. Please verify any critical information with 
 catalog = get_product_catalog()
       
 if not catalog:
-    st.warning(":material/warning: No products found. Did you run `python load_kg_data.py`?")
+    render_503_error()
+    st.stop()
 else:
     for category, products in catalog.items():
         with st.expander(f":material/package_2: {category}"):

@@ -7,6 +7,7 @@ import google.genai as genai
 from google.genai import types
 
 from utils.db import get_distinct_values
+from utils.error_handling import render_503_error
 
 
 # --- Constants ---

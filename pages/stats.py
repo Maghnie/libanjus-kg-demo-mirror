@@ -1,6 +1,7 @@
 import streamlit as st
 
 from utils.stats import get_graph_statistics
+from utils.error_handling import render_503_error
 
 
 # Load the global config
@@ -41,6 +42,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 stats = get_graph_statistics()
+
+if not stats:
+    render_503_error()
+    st.stop()
 
 # === Key Metrics Row ===
 col1, col2, col3, col4, col5 = st.columns(5)
