@@ -1,10 +1,7 @@
 import streamlit as st
 
-st.set_page_config(page_title="KG Assistant - Product Catalog", 
-                   page_icon=":material/nutrition:",
-                   layout="wide")
 
-st.markdown("""
+st.header("""
 MIT License
 
 Copyright (c) 2026 Marwa Maghnie
