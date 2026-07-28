@@ -1,0 +1,58 @@
+[
+  {
+    "address": "Dahr el ein, Ras Maska, Koura, Lebanon",
+    "city": "Koura",
+    "neighborhood": "Ras Maska",
+    "lat": 34.3833,
+    "lon": 35.8833
+  },
+  {
+    "address": "Gemmayze, Beirut, Lebanon",
+    "city": "Beirut",
+    "neighborhood": "Gemmayze",
+    "lat": 33.8933,
+    "lon": 35.5017
+  },
+  {
+    "address": "Haret Hreik, Beirut, Lebanon",
+    "city": "Beirut",
+    "neighborhood": "Haret Hreik",
+    "lat": 33.8500,
+    "lon": 35.5000
+  },
+  {
+    "address": "ABC Verdun, Beirut, Lebanon",
+    "city": "Beirut",
+    "neighborhood": "Verdun",
+    "lat": 33.8792,
+    "lon": 35.4847
+  },
+  {
+    "address": "Via Farini 33, 41121, Modena, Italy",
+    "city": "Modena",
+    "neighborhood": "Centro Storico",
+    "lat": 44.6464,
+    "lon": 10.9259
+  },
+  {
+    "address": "Muscat, Oman",
+    "city": "Muscat",
+    "neighborhood": "Central",
+    "lat": 23.5880,
+    "lon": 58.3829
+  },
+  {
+    "address": "Al Wahda Mall, Abu Dhabi, UAE",
+    "city": "Abu Dhabi",
+    "neighborhood": "Al Wahda",
+    "lat": 24.4830,
+    "lon": 54.3654
+  },
+  {
+    "address": "Dubai Mall, Dubai, UAE",
+    "city": "Dubai",
+    "neighborhood": "Downtown Dubai",
+    "lat": 25.1972,
+    "lon": 55.2744
+  }
+]

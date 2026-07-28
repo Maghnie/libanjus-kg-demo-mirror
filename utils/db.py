@@ -20,7 +20,9 @@ def get_neo4j_driver() -> Driver:
                 session.run("RETURN 1")
             st.session_state.neo4j_driver = driver
         except Exception as e:
-            st.error(f"🔃 Connection to database paused. Try refreshing the page or contact the page owner.")
+            st.image('static/placeholder_503.png')
+            st.info(f"🔃 Contact the page owner to get things started again.")
+            st.info(f"In the meantime, check out the [About page](about) for more info and a demo video.")
             st.stop()  # Stop the app if connection fails
 
     return st.session_state.neo4j_driver

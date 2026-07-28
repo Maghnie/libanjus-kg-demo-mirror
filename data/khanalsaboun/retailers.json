@@ -1,0 +1,111 @@
+[
+  {
+    "name": "Khan Al Saboun - Main Branch (Lebanon)",
+    "location": "Dahr el ein, Ras Maska, Koura – Lebanon",
+    "opening_hours": [
+      {"day": "Monday", "start": "08:00", "end": "19:00"},
+      {"day": "Tuesday", "start": "08:00", "end": "19:00"},
+      {"day": "Wednesday", "start": "08:00", "end": "19:00"},
+      {"day": "Thursday", "start": "08:00", "end": "19:00"},
+      {"day": "Friday", "start": "08:00", "end": "19:00"},
+      {"day": "Saturday", "start": "08:00", "end": "19:00"},
+      {"day": "Sunday", "start": "08:00", "end": "19:00"}
+    ]
+  },
+  {
+    "name": "Khan Al Saboun - Gemmayze (Lebanon)",
+    "location": "Gemmayze, Beirut, Lebanon",
+    "opening_hours": [
+      {"day": "Monday", "start": "09:30", "end": "18:30"},
+      {"day": "Tuesday", "start": "09:30", "end": "18:30"},
+      {"day": "Wednesday", "start": "09:30", "end": "18:30"},
+      {"day": "Thursday", "start": "09:30", "end": "18:30"},
+      {"day": "Friday", "start": "09:30", "end": "18:30"},
+      {"day": "Saturday", "start": "09:30", "end": "14:00"},
+      {"day": "Sunday", "start": "Closed", "end": "Closed"}
+    ]
+  },
+  {
+    "name": "Khan Al Saboun - Haret Hreik (Lebanon)",
+    "location": "Haret Hreik, Beirut, Lebanon",
+    "opening_hours": [
+      {"day": "Monday", "start": "09:30", "end": "18:30"},
+      {"day": "Tuesday", "start": "09:30", "end": "18:30"},
+      {"day": "Wednesday", "start": "09:30", "end": "18:30"},
+      {"day": "Thursday", "start": "09:30", "end": "18:30"},
+      {"day": "Friday", "start": "09:30", "end": "18:30"},
+      {"day": "Saturday", "start": "09:30", "end": "14:00"},
+      {"day": "Sunday", "start": "Closed", "end": "Closed"}
+    ]
+  },
+  {
+    "name": "Khan Al Saboun - ABC Verdun (Lebanon)",
+    "location": "ABC Verdun, Beirut, Lebanon",
+    "opening_hours": [
+      {"day": "Monday", "start": "10:00", "end": "22:00"},
+      {"day": "Tuesday", "start": "10:00", "end": "22:00"},
+      {"day": "Wednesday", "start": "10:00", "end": "22:00"},
+      {"day": "Thursday", "start": "10:00", "end": "22:00"},
+      {"day": "Friday", "start": "10:00", "end": "22:00"},
+      {"day": "Saturday", "start": "10:00", "end": "22:00"},
+      {"day": "Sunday", "start": "10:00", "end": "21:00"}
+    ]
+  },
+  {
+    "name": "Khan Al Saboun - Modena (Italy)",
+    "location": "Via Farini 33, 41121, Modena, Italy",
+    "opening_hours": [
+      {"day": "Monday", "start": "10:00", "end": "13:00"},
+      {"day": "Monday", "start": "15:30", "end": "19:30"},
+      {"day": "Tuesday", "start": "10:00", "end": "13:00"},
+      {"day": "Tuesday", "start": "15:30", "end": "19:30"},
+      {"day": "Wednesday", "start": "10:00", "end": "13:00"},
+      {"day": "Wednesday", "start": "15:30", "end": "19:30"},
+      {"day": "Thursday", "start": "10:00", "end": "13:00"},
+      {"day": "Thursday", "start": "15:30", "end": "19:30"},
+      {"day": "Friday", "start": "10:00", "end": "13:00"},
+      {"day": "Friday", "start": "15:30", "end": "19:30"},
+      {"day": "Saturday", "start": "10:00", "end": "13:00"},
+      {"day": "Sunday", "start": "Closed", "end": "Closed"}
+    ]
+  },
+  {
+    "name": "Khan Al Saboun - Muscat (Oman)",
+    "location": "Muscat, Oman",
+    "opening_hours": [
+      {"day": "Monday", "start": "09:00", "end": "22:00"},
+      {"day": "Tuesday", "start": "09:00", "end": "22:00"},
+      {"day": "Wednesday", "start": "09:00", "end": "22:00"},
+      {"day": "Thursday", "start": "09:00", "end": "22:00"},
+      {"day": "Friday", "start": "09:00", "end": "22:00"},
+      {"day": "Saturday", "start": "09:00", "end": "22:00"},
+      {"day": "Sunday", "start": "09:00", "end": "22:00"}
+    ]
+  },
+  {
+    "name": "Khan Al Saboun - Abu Dhabi (UAE)",
+    "location": "Al Wahda Mall, Abu Dhabi, UAE",
+    "opening_hours": [
+      {"day": "Monday", "start": "10:00", "end": "22:00"},
+      {"day": "Tuesday", "start": "10:00", "end": "22:00"},
+      {"day": "Wednesday", "start": "10:00", "end": "22:00"},
+      {"day": "Thursday", "start": "10:00", "end": "22:00"},
+      {"day": "Friday", "start": "10:00", "end": "22:00"},
+      {"day": "Saturday", "start": "10:00", "end": "22:00"},
+      {"day": "Sunday", "start": "10:00", "end": "22:00"}
+    ]
+  },
+  {
+    "name": "Khan Al Saboun - Dubai (UAE)",
+    "location": "Dubai Mall, Dubai, UAE",
+    "opening_hours": [
+      {"day": "Monday", "start": "10:00", "end": "23:00"},
+      {"day": "Tuesday", "start": "10:00", "end": "23:00"},
+      {"day": "Wednesday", "start": "10:00", "end": "23:00"},
+      {"day": "Thursday", "start": "10:00", "end": "23:00"},
+      {"day": "Friday", "start": "10:00", "end": "23:00"},
+      {"day": "Saturday", "start": "10:00", "end": "23:00"},
+      {"day": "Sunday", "start": "10:00", "end": "23:00"}
+    ]
+  }
+]

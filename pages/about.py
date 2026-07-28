@@ -2,15 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
-import base64
-import os
-from pathlib import Path
-
 import streamlit as st
-
-from utils.config import load_company_config
-from utils.styles import apply_theme, load_css, load_material_symbols_font
 
 
 # Use the already-loaded config from app.py
@@ -28,10 +20,10 @@ display_name = config["display_name"]
 USE_CASES_TABLE = """
 | **Use Case**               | **Business Impact**                          |
 |----------------------------|---------------------------------------------|
-| *Customer dietary questions* | Improve accessibility & loyalty for niche markets (celiac, vegan, etc.) |
-| *Real-time store/product queries* | Reduce support calls, empower in-store staff |
 | *Distribution optimization* | Identify gaps, reduce logistics costs       |
 | *Competitive intelligence*   | Spot trends in product availability & pricing|
+| *Customer dietary questions* | Improve accessibility & loyalty for niche markets (celiac, vegan, etc.) |
+| *Real-time store/product queries* | Reduce support calls, empower in-store staff |
 """
 
 BENEFITS = [
@@ -78,12 +70,15 @@ def render_hero() -> None:
             <p class="hero-tagline"><strong>
             Why this matters and how it works</strong></p>
             <p class="hero-subtext">
-                Answer complex customer questions in plain English using your existing data.
+                Answer complex operations and customer questions in plain English using your existing data.
             </p>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+def render_demo() -> None:
+    st.video('static/demo.mp4', start_time='7s', end_time='38s', loop=True, autoplay=True)
 
 def render_use_cases() -> None:
     with st.expander(
@@ -121,7 +116,7 @@ def render_benefits_grid() -> None:
 
 
 def render_architecture_section() -> None:
-    with st.expander(":material/build: **Under the Hood: How It Works**", expanded=False):
+    with st.expander(":material/build: **Under the Hood: How It Works**", expanded=True):
         st.image(
             "static/kg_llm_app_architecture_icons.svg",
             width="stretch",
@@ -132,20 +127,9 @@ def render_architecture_section() -> None:
 # --- Entry point ---------------------------------------------------------
 
 def main() -> None:
-    # company = st.session_state.get("company", os.getenv("COMPANY", "libanjus"))
-
-    # company_config = load_company_config(company)
-
-    st.set_page_config(
-        # page_title=f"{company_config['display_name']} KG Assistant",
-        page_icon=":material/info:",
-        layout="centered",
-        initial_sidebar_state="expanded",
-    )
-
-
     
     render_hero()
+    render_demo()
     render_use_cases()
     render_cta()
     render_benefits_grid()
